@@ -127,6 +127,14 @@ function color2array(col:number) : number[] {
 
 function startRecivedData() {
 
+    socket.on('event', (str: string) => {
+        //console.log('event:' + str)
+        const payload = str;
+        worker.postMessage({
+            type: 'RECEIVED_EVENT',
+            payload
+        } as SocketMessage<any>)
+    })
     socket.on('bargraphs', (str: string) => {
         console.log('Bargraphs:' + str.length)
         const rawData = JSON.parse(str);

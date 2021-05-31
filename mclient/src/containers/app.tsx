@@ -43,7 +43,7 @@ class App extends Container<any,any> {
 
 	constructor (props: any) {
 		super(props)
-		const { setSecPerHour, setLeading, setTrailing } = props.actions
+		const { setSecPerHour, setLeading, setTrailing, setNoLoop } = props.actions
 		const worker = new Worker('socketWorker.js'); // worker for socket-io communication.
 		const self = this;
 		worker.onmessage = (e) => {
@@ -85,13 +85,16 @@ class App extends Container<any,any> {
 				store.dispatch(actions.setTopLabelInfo(msg.payload))
 			} else if (isHarmoVISConfMsg(msg)){
 				self.resolveHarmoVISConf(msg.payload)
+			} else if (msg.type === 'RECEIVED_EVENT'){
+				self.getEvent(msg.payload)
 			}
 
 		}
 
 		setSecPerHour(3600)
-		setLeading(3)
+		setLeading(15)
 		setTrailing(3)
+		setNoLoop(true);
 
 
 
@@ -528,37 +531,52 @@ class App extends Container<any,any> {
 
 	getEvent (socketData:any) {
 		const { actions, movesbase } = this.props
-		const { mtype, id, lat, lon, angle, speed } = JSON.parse(socketData)
-		// 	console.log("dt:",mtype,id,time,lat,lon,angle,speed, socketData);
-		const time = Date.now() / 1000 // set time as now. (If data have time, ..)
+		const { mtype, id, lat, lon, angle, speed, etime} = JSON.parse(socketData)
+		const elapsedtime = Date.parse(etime)/1000;
 		let hit = false
 		const movesbasedata = [...movesbase] // why copy !?
 		const setMovesbase = []
+		if(lat > 90 || lat < -90 || lon > 180 || lon < -180){
+			console.log({lon,lat})
+		}
 
 		for (let i = 0, lengthi = movesbasedata.length; i < lengthi; i += 1) {
-			// 	    let setMovedata = Object.assign({}, movesbasedata[i]);
 			let setMovedata = movesbasedata[i]
 			if (mtype === setMovedata.mtype && id === setMovedata.id) {
 				hit = true
-				// 		const {operation } = setMovedata;
-				// 		const arrivaltime = time;
-				setMovedata.arrivaltime = time
-				setMovedata.operation.push({
-					elapsedtime: time,
-					position: [lon, lat, 0],
-					angle, speed
-				})
-				// 		setMovedata = Object.assign({}, setMovedata, {arrivaltime, operation});
+				if(setMovedata.arrivaltime < elapsedtime){
+					setMovedata.arrivaltime = elapsedtime
+					setMovedata.operation.push({
+						elapsedtime: elapsedtime,
+						position: [lon, lat, 0],
+						angle, speed
+					})
+				}else
+				if(setMovedata.departuretime > elapsedtime){
+					setMovedata.departuretime = elapsedtime
+					setMovedata.operation.push({
+						elapsedtime: elapsedtime,
+						position: [lon, lat, 0],
+						angle, speed
+					})
+				}else
+				if(setMovedata.arrivaltime > elapsedtime){
+					setMovedata.operation.push({
+						elapsedtime: elapsedtime,
+						position: [lon, lat, 0],
+						angle, speed
+					})
+				}
 			}
 			setMovesbase.push(setMovedata)
 		}
 		if (!hit) {
 			setMovesbase.push({
 				mtype, id,
-				departuretime: time,
-				arrivaltime: time,
+				departuretime: elapsedtime,
+				arrivaltime: elapsedtime,
 				operation: [{
-					elapsedtime: time,
+					elapsedtime: elapsedtime,
 					position: [lon, lat, 0],
 					angle, speed
 				}]
@@ -832,8 +850,8 @@ class App extends Container<any,any> {
 //					getColor : [0,200,20] as number[],
 					getArchWidth: (x : any) => 0.2, 
 					optionCellSize: 2,
-					sizeScale: 20,
-					iconChange: false,
+					sizeScale: 200,
+					iconChange: true,
 					optionChange: false, // this.state.optionChange,
 					onHover
 				}) as any

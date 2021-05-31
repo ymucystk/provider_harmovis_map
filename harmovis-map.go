@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -181,6 +182,22 @@ type MapMarker struct {
 func (m *MapMarker) GetJson() string {
 	s := fmt.Sprintf("{\"mtype\":%d,\"id\":%d,\"lat\":%f,\"lon\":%f,\"angle\":%f,\"speed\":%d}",
 		m.mtype, m.id, m.lat, m.lon, m.angle, m.speed)
+	return s
+}
+
+type MapMarker2 struct {
+	mtype int32   `json:"mtype"`
+	id    int32   `json:"id"`
+	lat   float32 `json:"lat"`
+	lon   float32 `json:"lon"`
+	angle float32 `json:"angle"`
+	speed int32   `json:"speed"`
+	etime string
+}
+
+func (m *MapMarker2) GetJson() string {
+	s := fmt.Sprintf("{\"mtype\":%d,\"id\":%d,\"lat\":%f,\"lon\":%f,\"angle\":%f,\"speed\":%d,\"etime\":\"%s\"}",
+		m.mtype, m.id, m.lat, m.lon, m.angle, m.speed, m.etime)
 	return s
 }
 
@@ -399,21 +416,21 @@ func subscribeGeoSupply(client *sxutil.SXServiceClient) {
 
 func supplyPTCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 	pt := &pt.PTService{}
-	//log.Print(pt)
 	err := proto.Unmarshal(sp.Cdata.Entity, pt)
 
 	if err == nil { // get PT
-		//		fmt.Printf("Receive PT: %#v", *pt)
+		jsontoken := strings.Split(sp.ArgJson, ",")
+		tstr := strings.Split(jsontoken[7], ".")[0]
+		datestr := jsontoken[6] + " " + tstr + " (JST)"
 
-		log.Print(pt)
-
-		mm := &MapMarker{
+		mm := &MapMarker2{
 			mtype: pt.VehicleType, // depends on type of GTFS: 1 for Subway, 2, for Rail, 3 for bus
 			id:    pt.VehicleId,
 			lat:   float32(pt.Lat),
 			lon:   float32(pt.Lon),
 			angle: pt.Angle,
 			speed: pt.Speed,
+			etime: datestr,
 		}
 		mu.Lock()
 		if mm.lat > 10 {
