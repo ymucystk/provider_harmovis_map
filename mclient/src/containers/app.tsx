@@ -858,6 +858,7 @@ class App extends Container<any,any> {
 			layers.push(
 				new MovesLayer({
 					routePaths, 
+					getRouteColor: (x: any) => x.routeColor || [255,165,0],
 					movesbase, 
 					movedData,
 					clickedObject, 
