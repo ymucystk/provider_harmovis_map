@@ -865,7 +865,7 @@ class App extends Container<any,any> {
 					optionVisible: this.state.moveOptionVisible,
 					layerRadiusScale: 0.03,
 					layerOpacity: 0.8,
-					getRouteWidth: () => 0.2,
+					getRouteWidth: () => 5,
 //					getStrokeWidth: 0.1,
 //					getColor : [0,200,20] as number[],
 					getArchWidth: (x : any) => 0.2, 
@@ -877,7 +877,6 @@ class App extends Container<any,any> {
 				}) as any
 			)
 		}
-
 
 		if (enabledHeatmap) {
 			layers.push(
