@@ -198,8 +198,8 @@ type MapMarker2 struct {
 }
 
 func (m *MapMarker2) GetJson() string {
-	s := fmt.Sprintf("{\"mtype\":%d,\"id\":%d,\"lat\":%f,\"lon\":%f,\"angle\":%f,\"speed\":%d,\"etime\":\"%s\"}",
-		m.mtype, m.id, m.lat, m.lon, m.angle, m.speed, m.etime)
+	s := fmt.Sprintf("{\"mtype\":%d,\"id\":%d,\"lat\":%f,\"lon\":%f,\"angle\":%f,\"speed\":%d,\"passenger\":%d,\"etime\":\"%s\"}",
+		m.mtype, m.id, m.lat, m.lon, m.angle, m.speed, m.passenger, m.etime)
 	return s
 }
 
@@ -446,7 +446,7 @@ func supplyPTCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 		if mm.lat > 10 {
 			//log.Printf("supplyPTCallback [%s]", mm.GetJson())
 			ioserv.BroadcastToAll("event", mm.GetJson())
-			log.Printf("count, passenger: %d - %d = %d", bording_count_reset, getoff_count_reset, passenger)
+			//log.Printf("count, passenger: %d - %d = %d", bording_count_reset, getoff_count_reset, passenger)
 			//ioserv.BroadcastToRoom("/", "#", "event", mm.GetJson())
 		}
 		mu.Unlock()
