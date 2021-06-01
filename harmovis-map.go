@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -186,13 +187,14 @@ func (m *MapMarker) GetJson() string {
 }
 
 type MapMarker2 struct {
-	mtype int32   `json:"mtype"`
-	id    int32   `json:"id"`
-	lat   float32 `json:"lat"`
-	lon   float32 `json:"lon"`
-	angle float32 `json:"angle"`
-	speed int32   `json:"speed"`
-	etime string
+	mtype     int32   `json:"mtype"`
+	id        int32   `json:"id"`
+	lat       float32 `json:"lat"`
+	lon       float32 `json:"lon"`
+	angle     float32 `json:"angle"`
+	speed     int32   `json:"speed"`
+	passenger int32   `json:"passenger"`
+	etime     string
 }
 
 func (m *MapMarker2) GetJson() string {
@@ -423,19 +425,28 @@ func supplyPTCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 		tstr := strings.Split(jsontoken[7], ".")[0]
 		datestr := jsontoken[6] + " " + tstr + " (JST)"
 
+		bording_count_reset, _ := strconv.Atoi(jsontoken[24]) // エンジン起動以後の乗車人数
+		getoff_count_reset, _ := strconv.Atoi(jsontoken[25])  // エンジン起動以後の降車人数
+		passenger := bording_count_reset - getoff_count_reset
+		if passenger < 0 {
+			passenger = 0
+		} // 乗車人数は 0以上とする。（本来であれば、乗車数のカウントミス）
+
 		mm := &MapMarker2{
-			mtype: pt.VehicleType, // depends on type of GTFS: 1 for Subway, 2, for Rail, 3 for bus
-			id:    pt.VehicleId,
-			lat:   float32(pt.Lat),
-			lon:   float32(pt.Lon),
-			angle: pt.Angle,
-			speed: pt.Speed,
-			etime: datestr,
+			mtype:     pt.VehicleType, // depends on type of GTFS: 1 for Subway, 2, for Rail, 3 for bus
+			id:        pt.VehicleId,
+			lat:       float32(pt.Lat),
+			lon:       float32(pt.Lon),
+			angle:     pt.Angle,
+			speed:     pt.Speed,
+			passenger: int32(passenger),
+			etime:     datestr,
 		}
 		mu.Lock()
 		if mm.lat > 10 {
 			//log.Printf("supplyPTCallback [%s]", mm.GetJson())
 			ioserv.BroadcastToAll("event", mm.GetJson())
+			log.Printf("count, passenger: %d - %d = %d", bording_count_reset, getoff_count_reset, passenger)
 			//ioserv.BroadcastToRoom("/", "#", "event", mm.GetJson())
 		}
 		mu.Unlock()
