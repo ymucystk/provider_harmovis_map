@@ -120,7 +120,8 @@ class App extends Container<any,any> {
 				height: 500
 			}, */
 			linecolor: [0,155,155],
-			popup: [0, 0, '']
+			popup: [0, 0, ''],
+			sizeScale:100
 		}
 
 		// just initial settings for lines.
@@ -632,6 +633,25 @@ class App extends Container<any,any> {
 // 		console.log(MapContext.viewport)
 	}
 
+	iconSizeChange(change:string){
+		let sizeScale = this.state.sizeScale;
+		if(change==='+'){
+			if(sizeScale < 10){
+				sizeScale += 1;
+			}else{
+				sizeScale += 10;
+			}
+		}else
+		if(change==='-' && sizeScale > 0){
+			if(sizeScale > 10){
+				sizeScale -= 10;
+			}else{
+				sizeScale -= 1;
+			}
+		}
+		this.setState({ sizeScale })
+	}
+
 	getMoveDataChecked (e :any) {
 		this.setState({ moveDataVisible: e.target.checked })
 	}
@@ -850,7 +870,7 @@ class App extends Container<any,any> {
 //					getColor : [0,200,20] as number[],
 					getArchWidth: (x : any) => 0.2, 
 					optionCellSize: 2,
-					sizeScale: 200,
+					sizeScale: this.state.sizeScale,
 					iconChange: true,
 					optionChange: false, // this.state.optionChange,
 					onHover
@@ -890,6 +910,7 @@ class App extends Container<any,any> {
 		const controller  = 
 			(this.state.controlVisible?
 				<Controller {...(props as any)}
+				iconSizeChange={this.iconSizeChange.bind(this)}
 				deleteMovebase={this.deleteMovebase.bind(this)}
 				getMoveDataChecked={this.getMoveDataChecked.bind(this)}
 				getMoveOptionChecked={this.getMoveOptionChecked.bind(this)}

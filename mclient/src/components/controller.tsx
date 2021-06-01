@@ -60,6 +60,7 @@ interface ControllerProps {
   inputFileName: any, 
   viewport: any ,
   movesbase: any
+  iconSizeChange: any
 }
 
 interface ContState {
@@ -166,6 +167,10 @@ export default class Controller extends React.Component<ControllerProps, ContSta
     downLoadLink.click();
   }
 
+  iconSizeChange(change:string){
+    this.props.iconSizeChange(change)
+  }
+
   render () {
     const { settime, timeBegin, leading, timeLength, actions,
       secperhour, animatePause, animateReverse,
@@ -212,6 +217,18 @@ export default class Controller extends React.Component<ControllerProps, ContSta
                 <button className='btn btn-outline-light btn-sm w-100' onClick={this.movesBaseSave.bind(this)}>
                   <span className='button_span'>Data Save</span>
                 </button>
+              </div>
+            </li>            
+
+            <li><span>アイコンサイズ変更</span>
+              <div className='btn-group d-flex' role='group'>
+                <button className='btn btn-outline-light btn-sm w-100' onClick={this.iconSizeChange.bind(this,'+')}>
+                  <span className='button_span'>＋</span>
+                </button>
+                <button className='btn btn-outline-light btn-sm w-100' onClick={this.iconSizeChange.bind(this,'-')}>
+                  <span className='button_span'>－</span>
+                </button>
+
               </div>
             </li>            
 
