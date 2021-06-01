@@ -101,7 +101,7 @@ class App extends Container<any,any> {
 
 		this.state = {
 			moveDataVisible: true,
-			moveOptionVisible: false,
+			moveOptionVisible: true,
 			depotOptionVisible: false,
 			controlVisible: true,
 			fpsVisible:true,
@@ -178,9 +178,6 @@ class App extends Container<any,any> {
 		}
 		if (conf.moveDataVisible != undefined){
 			this.setState({moveDataVisible: conf.moveDataVisible});
-		}
-		if (conf.moveOptionVisible != undefined){
-			this.setState({moveOptionVisible: conf.moveOptionVisible});
 		}
 		if (conf.moveOptionVisible != undefined){
 			this.setState({moveOptionVisible: conf.moveOptionVisible});
@@ -532,7 +529,7 @@ class App extends Container<any,any> {
 
 	getEvent (socketData:any) {
 		const { actions, movesbase } = this.props
-		const { mtype, id, lat, lon, angle, speed, etime} = JSON.parse(socketData)
+		const { mtype, id, lat, lon, angle, speed, passenger, etime} = JSON.parse(socketData)
 		const elapsedtime = Date.parse(etime)/1000;
 		let hit = false
 		const movesbasedata = [...movesbase] // why copy !?
@@ -550,7 +547,8 @@ class App extends Container<any,any> {
 					setMovedata.operation.push({
 						elapsedtime: elapsedtime,
 						position: [lon, lat, 0],
-						angle, speed
+						angle, speed,
+						optElevation:[passenger]
 					})
 				}else
 				if(setMovedata.departuretime > elapsedtime){
@@ -558,14 +556,16 @@ class App extends Container<any,any> {
 					setMovedata.operation.push({
 						elapsedtime: elapsedtime,
 						position: [lon, lat, 0],
-						angle, speed
+						angle, speed,
+						optElevation:[passenger]
 					})
 				}else
 				if(setMovedata.arrivaltime > elapsedtime){
 					setMovedata.operation.push({
 						elapsedtime: elapsedtime,
 						position: [lon, lat, 0],
-						angle, speed
+						angle, speed,
+						optElevation:[passenger]
 					})
 				}
 			}
@@ -579,7 +579,8 @@ class App extends Container<any,any> {
 				operation: [{
 					elapsedtime: elapsedtime,
 					position: [lon, lat, 0],
-					angle, speed
+					angle, speed,
+					optElevation:[passenger]
 				}]
 			})
 		}
@@ -863,13 +864,17 @@ class App extends Container<any,any> {
 					actions,
 					visible: this.state.moveDataVisible,
 					optionVisible: this.state.moveOptionVisible,
-					layerRadiusScale: 0.03,
+					optionCentering: false,
+					optionElevationScale: this.state.sizeScale * 2,
+					optionOpacity: 0.8, 
+					optionCellSize: this.state.sizeScale + 3,
+					optionDisplayPosition: this.state.sizeScale + 12,
+					getCubeColor: (x: any) => x.optColor || [[255,255,255]],
 					layerOpacity: 0.8,
 					getRouteWidth: () => 5,
 //					getStrokeWidth: 0.1,
 //					getColor : [0,200,20] as number[],
-					getArchWidth: (x : any) => 0.2, 
-					optionCellSize: 2,
+					getArchWidth: (x : any) => 5, 
 					sizeScale: this.state.sizeScale,
 					iconChange: true,
 					optionChange: false, // this.state.optionChange,

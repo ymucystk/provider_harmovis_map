@@ -193,7 +193,7 @@ export default class Controller extends React.Component<ControllerProps, ContSta
             </li>
             <li>
               <div className='form-check'>
-                <input type='checkbox' id='MoveOptionChecked' onChange={getMoveOptionChecked} className='form-check-input' />
+                <input type='checkbox' id='MoveOptionChecked' onChange={getMoveOptionChecked} className='form-check-input' defaultChecked={true} />
                 <label htmlFor='MoveOptionChecked' className='form-check-label'>移動データオプション表示</label>
               </div>
             </li>

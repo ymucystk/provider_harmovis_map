@@ -202,8 +202,8 @@ func (m *MapMarker) GetJson() string {
 }
 
 func (m *MapMarker2) GetJson() string {
-	s := fmt.Sprintf("{\"mtype\":%d,\"id\":%d,\"lat\":%f,\"lon\":%f,\"angle\":%f,\"speed\":%d,\"etime\":\"%s\"}",
-		m.mtype, m.id, m.lat, m.lon, m.angle, m.speed, m.etime)
+	s := fmt.Sprintf("{\"mtype\":%d,\"id\":%d,\"lat\":%f,\"lon\":%f,\"angle\":%f,\"speed\":%d,\"passenger\":%d,\"etime\":\"%s\"}",
+		m.mtype, m.id, m.lat, m.lon, m.angle, m.speed, m.passenger, m.etime)
 	return s
 }
 
