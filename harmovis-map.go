@@ -437,6 +437,12 @@ func supplyPTCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 		} // 乗車人数は 0以上とする。（本来であれば、乗車数のカウントミス）
 
 		lastMarker := lastMarkers[pt.VehicleId]
+
+		if lastMarker != nil && lastMarker.etime == datestr { // no time change
+			//	log.Printf("Same time! %d", pt.VehicleId)
+			return
+		}
+
 		if lastMarker != nil && lastMarker.lat == float32(pt.Lat) &&
 			lastMarker.lon == float32(pt.Lon) &&
 			lastMarker.angle == pt.Angle &&
