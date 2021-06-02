@@ -858,9 +858,11 @@ class App extends Container<any,any> {
 			layers.push(
 				new MovesLayer({
 					routePaths, 
+					getRouteWidth: () => 5,
 					getRouteColor: (x: any) => x.routeColor || [255,165,0],
 					movesbase, 
 					movedData,
+					layerOpacity: 0.8,
 					clickedObject, 
 					actions,
 					visible: this.state.moveDataVisible,
@@ -871,14 +873,11 @@ class App extends Container<any,any> {
 					optionCellSize: this.state.sizeScale + 3,
 					optionDisplayPosition: this.state.sizeScale + 12,
 					getCubeColor: (x: any) => x.optColor || [[255,255,255]],
-					layerOpacity: 0.8,
-					getRouteWidth: () => 5,
-//					getStrokeWidth: 0.1,
-//					getColor : [0,200,20] as number[],
-					getArchWidth: (x : any) => 5, 
 					sizeScale: this.state.sizeScale,
 					iconChange: true,
 					optionChange: false, // this.state.optionChange,
+					optionArcVisible: false,
+					optionLineVisible: false,
 					onHover
 				}) as any
 			)
