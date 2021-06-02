@@ -28,6 +28,16 @@ import (
 )
 
 // Harmoware Vis-Synerex wiht Layer extension provider provides map information to Web Service through socket.io.
+type MapMarker2 struct {
+	mtype     int32   `json:"mtype"`
+	id        int32   `json:"id"`
+	lat       float32 `json:"lat"`
+	lon       float32 `json:"lon"`
+	angle     float32 `json:"angle"`
+	speed     int32   `json:"speed"`
+	passenger int32   `json:"passenger"`
+	etime     string
+}
 
 var (
 	nodesrv         = flag.String("nodesrv", "127.0.0.1:9990", "Node ID Server")
@@ -39,7 +49,12 @@ var (
 	ioserv          *gosocketio.Server
 	sxServerAddress string
 	mapboxToken     string
+	lastMarkers     map[int32]*MapMarker2 // 過去のマーカ情報の記録（時刻以外の変化を見るため）
 )
+
+func init() { // initialize function
+	lastMarkers = make(map[int32]*MapMarker2)
+}
 
 func toJSON(m map[string]interface{}, utime int64) string {
 	s := fmt.Sprintf("{\"mtype\":%d,\"id\":%d,\"time\":%d,\"lat\":%f,\"lon\":%f,\"angle\":%f,\"speed\":%d}",
@@ -184,17 +199,6 @@ func (m *MapMarker) GetJson() string {
 	s := fmt.Sprintf("{\"mtype\":%d,\"id\":%d,\"lat\":%f,\"lon\":%f,\"angle\":%f,\"speed\":%d}",
 		m.mtype, m.id, m.lat, m.lon, m.angle, m.speed)
 	return s
-}
-
-type MapMarker2 struct {
-	mtype     int32   `json:"mtype"`
-	id        int32   `json:"id"`
-	lat       float32 `json:"lat"`
-	lon       float32 `json:"lon"`
-	angle     float32 `json:"angle"`
-	speed     int32   `json:"speed"`
-	passenger int32   `json:"passenger"`
-	etime     string
 }
 
 func (m *MapMarker2) GetJson() string {
@@ -432,6 +436,22 @@ func supplyPTCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			passenger = 0
 		} // 乗車人数は 0以上とする。（本来であれば、乗車数のカウントミス）
 
+		lastMarker := lastMarkers[pt.VehicleId]
+
+		if lastMarker != nil && lastMarker.etime == datestr { // no time change
+			//	log.Printf("Same time! %d", pt.VehicleId)
+			return
+		}
+
+		if lastMarker != nil && lastMarker.lat == float32(pt.Lat) &&
+			lastMarker.lon == float32(pt.Lon) &&
+			lastMarker.angle == pt.Angle &&
+			lastMarker.speed == pt.Speed &&
+			passenger == int(lastMarker.passenger) { // no change without time
+			//			log.Printf("Same data!:%d", pt.VehicleId)
+			return
+		}
+
 		mm := &MapMarker2{
 			mtype:     pt.VehicleType, // depends on type of GTFS: 1 for Subway, 2, for Rail, 3 for bus
 			id:        pt.VehicleId,
@@ -442,6 +462,9 @@ func supplyPTCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			passenger: int32(passenger),
 			etime:     datestr,
 		}
+
+		lastMarkers[pt.VehicleId] = mm // record
+
 		mu.Lock()
 		if mm.lat > 10 {
 			//log.Printf("supplyPTCallback [%s]", mm.GetJson())
