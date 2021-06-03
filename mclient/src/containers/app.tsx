@@ -120,8 +120,7 @@ class App extends Container<any,any> {
 				height: 500
 			}, */
 			linecolor: [0,155,155],
-			popup: [0, 0, ''],
-			sizeScale:100
+			popup: [0, 0, '']
 		}
 
 		// just initial settings for lines.
@@ -634,25 +633,6 @@ class App extends Container<any,any> {
 // 		console.log(MapContext.viewport)
 	}
 
-	iconSizeChange(change:string){
-		let sizeScale = this.state.sizeScale;
-		if(change==='+'){
-			if(sizeScale < 10){
-				sizeScale += 1;
-			}else{
-				sizeScale += 10;
-			}
-		}else
-		if(change==='-' && sizeScale > 0){
-			if(sizeScale > 10){
-				sizeScale -= 10;
-			}else{
-				sizeScale -= 1;
-			}
-		}
-		this.setState({ sizeScale })
-	}
-
 	getMoveDataChecked (e :any) {
 		this.setState({ moveDataVisible: e.target.checked })
 	}
@@ -693,7 +673,7 @@ class App extends Container<any,any> {
 		// make zoom level 20!
 //		let pv = this.props.viewport
 //		pv.maxZoom = 20
-		this.props.actions.setViewport({maxZoom:30, minZoom:1, maxPitch:85})
+		this.props.actions.setViewport({maxZoom:18, minZoom:1, maxPitch:85})
 //		const { setNoLoop } = this.props.actions
 //		setNoLoop(true); // no loop on time end.
 //		this.setSampleMesh()
@@ -855,6 +835,7 @@ class App extends Container<any,any> {
 			
 
 		if (this.state.moveDataVisible && movedData.length > 0) {
+			const sizeScale = Math.max(1,(20-viewport.zoom)**2);
 			layers.push(
 				new MovesLayer({
 					routePaths, 
@@ -868,12 +849,12 @@ class App extends Container<any,any> {
 					visible: this.state.moveDataVisible,
 					optionVisible: this.state.moveOptionVisible,
 					optionCentering: false,
-					optionElevationScale: this.state.sizeScale * 2,
+					optionElevationScale: sizeScale * 2,
 					optionOpacity: 0.8, 
-					optionCellSize: this.state.sizeScale + 3,
-					optionDisplayPosition: this.state.sizeScale + 12,
+					optionCellSize: sizeScale + 3,
+					optionDisplayPosition: sizeScale + 10,
 					getCubeColor: (x: any) => x.optColor || [[255,255,255]],
-					sizeScale: this.state.sizeScale,
+					sizeScale: sizeScale,
 					iconChange: true,
 					optionChange: false, // this.state.optionChange,
 					optionArcVisible: false,
@@ -914,7 +895,6 @@ class App extends Container<any,any> {
 		const controller  = 
 			(this.state.controlVisible?
 				<Controller {...(props as any)}
-				iconSizeChange={this.iconSizeChange.bind(this)}
 				deleteMovebase={this.deleteMovebase.bind(this)}
 				getMoveDataChecked={this.getMoveDataChecked.bind(this)}
 				getMoveOptionChecked={this.getMoveOptionChecked.bind(this)}
