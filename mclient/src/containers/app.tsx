@@ -835,7 +835,8 @@ class App extends Container<any,any> {
 			
 
 		if (this.state.moveDataVisible && movedData.length > 0) {
-			const sizeScale = Math.max(1,(20-viewport.zoom)**2);
+			const zoomDiff = Math.max(1,20-viewport.zoom);
+			const sizeScale = zoomDiff**2;
 			layers.push(
 				new MovesLayer({
 					routePaths, 
@@ -851,8 +852,8 @@ class App extends Container<any,any> {
 					optionCentering: false,
 					optionElevationScale: sizeScale * 2,
 					optionOpacity: 0.8, 
-					optionCellSize: sizeScale + 3,
-					optionDisplayPosition: sizeScale + 10,
+					optionCellSize: sizeScale + zoomDiff,
+					optionDisplayPosition: sizeScale + zoomDiff,
 					getCubeColor: (x: any) => x.optColor || [[255,255,255]],
 					sizeScale: sizeScale,
 					iconChange: true,
