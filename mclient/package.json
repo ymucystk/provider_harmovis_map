@@ -44,8 +44,8 @@
     "hard-source-webpack-plugin": "^0.13.1",
     "harmoware-vis": "^1.7.1",
     "node-sass": "^5.0.0",
-    "react": "^16.14.0",
-    "react-dom": "^16.14.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "react-redux": "^7.2.4",
     "react-spinners": "^0.10.6",
     "redux": "^4.1.0",
@@ -65,8 +65,8 @@
     "xss": "^1.0.9"
   },
   "devDependencies": {
-    "@types/react": "16.9.46",
-    "@types/react-dom": "16.9.8",
+    "@types/react": "^17.0.9",
+    "@types/react-dom": "^17.0.6",
     "@types/react-redux": "^7.1.16",
     "copy-webpack-plugin": "^6.4.1",
     "ts-loader": "^8.1.0",
