@@ -91,9 +91,9 @@ class App extends Container<any,any> {
 
 		}
 
-		setSecPerHour(3600)
-		setLeading(15)
-		setTrailing(3)
+		setSecPerHour(4800)
+		setLeading(3)
+		setTrailing(0)
 		setNoLoop(true);
 
 
@@ -836,7 +836,7 @@ class App extends Container<any,any> {
 
 		if (this.state.moveDataVisible && movedData.length > 0) {
 			const zoomDiff = Math.max(1,20-viewport.zoom);
-			const sizeScale = zoomDiff**2;
+			const sizeScale = (Math.max(2,zoomDiff)**2)*2;
 			layers.push(
 				new MovesLayer({
 					routePaths, 
