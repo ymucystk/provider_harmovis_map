@@ -835,8 +835,8 @@ class App extends Container<any,any> {
 			
 
 		if (this.state.moveDataVisible && movedData.length > 0) {
-			const zoomDiff = Math.max(1,20-viewport.zoom);
-			const sizeScale = (Math.max(2,zoomDiff)**2)*2;
+			const zoomDiff = Math.max(1.4,19-viewport.zoom);
+			const sizeScale = (zoomDiff**2)*2;
 			layers.push(
 				new MovesLayer({
 					routePaths, 
