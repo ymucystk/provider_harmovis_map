@@ -16,8 +16,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	gosocketio "github.com/mtfelian/golang-socketio"
-	"github.com/mtfelian/golang-socketio/transport"
+	socketio "github.com/googollee/go-socket.io"
 	fleet "github.com/synerex/proto_fleet"
 	geo "github.com/synerex/proto_geography"
 	pagent "github.com/synerex/proto_people_agent"
@@ -44,12 +43,15 @@ var (
 	assetDir        = flag.String("assetdir", "", "set Web client dir")
 	mapbox          = flag.String("mapbox", "", "Set Mapbox access token")
 	port            = flag.Int("port", 3030, "HarmoVis Ext Provider Listening Port")
+	localsx         = flag.String("localsx","","Local Synerex Server")
+	noskip		= flag.Bool("noskip",false,"Do not skip data")
 	mu              = new(sync.Mutex)
 	assetsDir       http.FileSystem
-	ioserv          *gosocketio.Server
+	ioserv          *socketio.Server
 	sxServerAddress string
 	mapboxToken     string
 	lastMarkers     map[int32]*MapMarker2 // 過去のマーカ情報の記録（時刻以外の変化を見るため）
+	ptcount	= 0
 )
 
 func init() { // initialize function
@@ -60,52 +62,6 @@ func toJSON(m map[string]interface{}, utime int64) string {
 	s := fmt.Sprintf("{\"mtype\":%d,\"id\":%d,\"time\":%d,\"lat\":%f,\"lon\":%f,\"angle\":%f,\"speed\":%d}",
 		0, int(m["vehicle_id"].(float64)), utime, m["coord"].([]interface{})[0].(float64), m["coord"].([]interface{})[1].(float64), m["angle"].(float64), int(m["speed"].(float64)))
 	return s
-}
-
-func handleFleetMessage(sv *gosocketio.Server, param interface{}) {
-	var bmap map[string]interface{}
-	utime := time.Now().Unix()
-	bmap = param.(map[string]interface{})
-	for _, v := range bmap["vehicles"].([]interface{}) {
-		m, _ := v.(map[string]interface{})
-		s := toJSON(m, utime)
-		sv.BroadcastToAll("event", s)
-	}
-}
-
-func getFleetInfo(serv string, sv *gosocketio.Server, ch chan error) {
-	fmt.Printf("Dial to [%s]\n", serv)
-	sioClient, err := gosocketio.Dial(serv+"socket.io/?EIO=3&transport=websocket", transport.DefaultWebsocketTransport())
-	if err != nil {
-		log.Printf("SocketIO Dial error: %s", err)
-		return
-	}
-
-	sioClient.On(gosocketio.OnConnection, func(c *gosocketio.Channel, param interface{}) {
-		fmt.Println("Fleet-Provider socket.io connected ", c)
-	})
-
-	sioClient.On(gosocketio.OnDisconnection, func(c *gosocketio.Channel, param interface{}) {
-		fmt.Println("Fleet-Provider socket.io disconnected ", c)
-		ch <- fmt.Errorf("Disconnected!\n")
-	})
-
-	sioClient.On("vehicle_status", func(c *gosocketio.Channel, param interface{}) {
-		handleFleetMessage(sv, param)
-	})
-
-}
-
-func runFleetInfo(serv string, sv *gosocketio.Server) {
-	ch := make(chan error)
-	for {
-		time.Sleep(3 * time.Second)
-		getFleetInfo(serv, sv, ch)
-		res := <-ch
-		if res == nil {
-			break
-		}
-	}
 }
 
 // assetsFileHandler for static Data
@@ -134,7 +90,7 @@ func assetsFileHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, file, fi.ModTime(), f)
 }
 
-func run_server() *gosocketio.Server {
+func run_server() *socketio.Server {
 
 	currentRoot, err := os.Getwd()
 	if err != nil {
@@ -147,29 +103,26 @@ func run_server() *gosocketio.Server {
 
 	d := filepath.Join(currentRoot, "mclient", "build")
 
+	fmt.Printf("Start Server")
+
 	assetsDir = http.Dir(d)
 	log.Println("AssetDir:", assetsDir)
 
 	assetsDir = http.Dir(d)
-	server := gosocketio.NewServer()
+	server := socketio.NewServer(nil)
 
-	server.On(gosocketio.OnConnection, func(c *gosocketio.Channel) {
-		// wait for a few milli seconds.
-		log.Printf("Connected from %s as %s", c.IP(), c.Id())
-		// Not emit at connection sending mapbox token from provider to browser.
-		/*
-			time.Sleep(1000 * time.Millisecond)
-			mapboxToken = os.Getenv("MAPBOX_ACCESS_TOKEN")
-			if *mapbox != "" {
-				mapboxToken = *mapbox
-			}
-
-			c.Emit("mapbox_token", mapboxToken)
-			log.Printf("mapbox-token transferred %s ", mapboxToken)
-		*/
+	server.OnConnect("/", func(s socketio.Conn) error {
+		resp := server.JoinRoom("/", "#", s)
+		log.Printf("Connected ID: %s from %v with URL:%s  %b", s.ID(), s.RemoteAddr(), s.URL(), resp)
+		return nil
 	})
 
-	server.On("get_mapbox_token", func(c *gosocketio.Channel) {
+	server.OnEvent("/","#", func(c socketio.Conn) {
+		log.Printf("Request! %v", c)
+	})
+
+
+	server.OnEvent("/","get_mapbox_token", func(c socketio.Conn) {
 		log.Printf("Requested mapbox access token")
 		mapboxToken = os.Getenv("MAPBOX_ACCESS_TOKEN")
 		if *mapbox != "" {
@@ -179,8 +132,14 @@ func run_server() *gosocketio.Server {
 		log.Printf("mapbox-token transferred %s ", mapboxToken)
 	})
 
-	server.On(gosocketio.OnDisconnection, func(c *gosocketio.Channel) {
-		log.Printf("Disconnected from %s as %s", c.IP(), c.Id())
+	server.OnError("/", func(s socketio.Conn, e error) {
+		log.Printf("SocketErr ID:%s err %v", s.ID(), s.RemoteAddr(), e)
+	})
+	
+
+	server.OnDisconnect("/", func(s socketio.Conn, reason string) {
+		resp := server.LeaveRoom("/", "#", s)
+		log.Printf("Disconnected ID:%s from %v leave:%b reason:%s", s.ID(), s.RemoteAddr(), resp, reason)
 	})
 
 	return server
@@ -223,25 +182,25 @@ func supplyRideCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 		//		jsondata, err := json.Marshal(*mm)
 		//		fmt.Println("rcb",mm.GetJson())
 		mu.Lock()
-		ioserv.BroadcastToAll("event", mm.GetJson())
+			ioserv.BroadcastToNamespace("/", "event", mm.GetJson())
 		mu.Unlock()
 	}
 }
 
 func reconnectClient(client *sxutil.SXServiceClient) {
 	mu.Lock() // first make client into nil
-	if client.Client != nil {
-		client.Client = nil
+	if client.SXClient != nil {
+		client.SXClient = nil
 		log.Printf("Client reset \n")
 	}
 	mu.Unlock()
 	time.Sleep(5 * time.Second) // wait 5 seconds to reconnect
 	mu.Lock()
-	if client.Client == nil {
+	if client.SXClient == nil {
 		newClt := sxutil.GrpcConnectServer(sxServerAddress)
 		if newClt != nil {
 			log.Printf("Reconnect server [%s]\n", sxServerAddress)
-			client.Client = newClt
+			client.SXClient = newClt
 		}
 	} else { // someone may connect!
 		log.Printf("Use reconnected server\n", sxServerAddress)
@@ -271,7 +230,7 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			log.Printf("Obtaining %s, id:%d, %s, len:%d ", geo.Type, geo.Id, geo.Label, len(strjs))
 			//			log.Printf("Data '%s'", strjs)
 			mu.Lock()
-			ioserv.BroadcastToAll("geojson", strjs)
+			ioserv.BroadcastToNamespace("/", "geojson", strjs)
 			mu.Unlock()
 		}
 	case "Lines":
@@ -284,7 +243,7 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			log.Printf("LinesParsed: %d", len(jsonBytes))
 
 			mu.Lock()
-			ioserv.BroadcastToAll("lines", string(jsonBytes))
+			ioserv.BroadcastToNamespace("/","lines", string(jsonBytes))
 			mu.Unlock()
 		}
 	case "ViewState":
@@ -295,9 +254,7 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			log.Printf("ViewState: %v", string(jsonBytes))
 
 			mu.Lock()
-			//ioserv.BroadcastToAll("mapbox_token", mapboxToken)
-
-			ioserv.BroadcastToAll("viewstate", string(jsonBytes))
+			ioserv.BroadcastToNamespace("/","viewstate", string(jsonBytes))
 			mu.Unlock()
 		}
 
@@ -309,7 +266,7 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			jsonStr := string(jsonBytes)
 			//			log.Printf("BarGraphs: %v", jsonStr)
 			mu.Lock()
-			ioserv.BroadcastToAll("bargraphs", jsonStr)
+			ioserv.BroadcastToNamespace("/","bargraphs", jsonStr)
 			mu.Unlock()
 		}
 
@@ -321,7 +278,7 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			//			log.Printf("ClearMoves: %v", string(jsonBytes))
 
 			mu.Lock()
-			ioserv.BroadcastToAll("clearMoves", string(jsonBytes))
+			ioserv.BroadcastToNamespace("/","clearMoves", string(jsonBytes))
 			mu.Unlock()
 		}
 	case "Pitch":
@@ -332,7 +289,7 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			//			log.Printf("Pitch: %v", string(jsonBytes))
 
 			mu.Lock()
-			ioserv.BroadcastToAll("pitch", string(jsonBytes))
+			ioserv.BroadcastToNamespace("/","pitch", string(jsonBytes))
 			mu.Unlock()
 		}
 	case "Bearing":
@@ -343,7 +300,7 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			//			log.Printf("Bearing: %v", string(jsonBytes))
 
 			mu.Lock()
-			ioserv.BroadcastToAll("bearing", string(jsonBytes))
+			ioserv.BroadcastToNamespace("/","bearing", string(jsonBytes))
 			mu.Unlock()
 		}
 
@@ -354,14 +311,14 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			jsonBytes, _ := json.Marshal(cms)
 			//			log.Printf("Arcs: %v", string(jsonBytes))
 			mu.Lock()
-			ioserv.BroadcastToAll("arcs", string(jsonBytes))
+			ioserv.BroadcastToNamespace("/","arcs", string(jsonBytes))
 			mu.Unlock()
 		}
 
 	case "ClearArcs":
 		log.Printf("clearArc!")
 		mu.Lock()
-		ioserv.BroadcastToAll("clearArcs", string(0))
+		ioserv.BroadcastToNamespace("/","clearArcs", string(0))
 		mu.Unlock()
 
 	case "Scatters":
@@ -371,14 +328,14 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			jsonBytes, _ := json.Marshal(cms)
 			//			log.Printf("Scatters: %v", string(jsonBytes))
 			mu.Lock()
-			ioserv.BroadcastToAll("scatters", string(jsonBytes))
+			ioserv.BroadcastToNamespace("/","scatters", string(jsonBytes))
 			mu.Unlock()
 		}
 
 	case "ClearScatters":
 		log.Printf("clearScatter!")
 		mu.Lock()
-		ioserv.BroadcastToAll("clearScatters", string(0))
+		ioserv.BroadcastToNamespace("/","clearScatters", string(0))
 		mu.Unlock()
 
 	case "TopTextLabel":
@@ -390,7 +347,7 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			jsonBytes, _ := json.Marshal(cms)
 			//			log.Printf("LabelInfo: %v", string(jsonBytes))
 			mu.Lock()
-			ioserv.BroadcastToAll("topLabelInfo", string(jsonBytes))
+			ioserv.BroadcastToNamespace("/","topLabelInfo", string(jsonBytes))
 			mu.Unlock()
 
 		}
@@ -401,7 +358,7 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 		if err == nil {
 			jsonBytes, _ := json.Marshal(cms)
 			mu.Lock()
-			ioserv.BroadcastToAll("harmovis", string(jsonBytes))
+			ioserv.BroadcastToNamespace("/","harmovis", string(jsonBytes))
 			mu.Unlock()
 
 		}
@@ -423,6 +380,7 @@ func subscribeGeoSupply(client *sxutil.SXServiceClient) {
 func supplyPTCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 	pt := &pt.PTService{}
 	err := proto.Unmarshal(sp.Cdata.Entity, pt)
+	ptcount ++;
 
 	if err == nil { // get PT
 		jsontoken := strings.Split(sp.ArgJson, ",")
@@ -438,18 +396,21 @@ func supplyPTCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 
 		lastMarker := lastMarkers[pt.VehicleId]
 
-		if lastMarker != nil && lastMarker.etime == datestr { // no time change
-			//	log.Printf("Same time! %d", pt.VehicleId)
-			return
-		}
+		if !*noskip {
 
-		if lastMarker != nil && lastMarker.lat == float32(pt.Lat) &&
-			lastMarker.lon == float32(pt.Lon) &&
-			lastMarker.angle == pt.Angle &&
-			lastMarker.speed == pt.Speed &&
-			passenger == int(lastMarker.passenger) { // no change without time
+			if lastMarker != nil && lastMarker.etime == datestr { // no time change
+			//	log.Printf("Same time! %d", pt.VehicleId)
+				return
+			}
+
+			if lastMarker != nil && lastMarker.lat == float32(pt.Lat) &&
+				lastMarker.lon == float32(pt.Lon) &&
+				lastMarker.angle == pt.Angle &&
+				lastMarker.speed == pt.Speed &&
+				passenger == int(lastMarker.passenger) { // no change without time
 			//			log.Printf("Same data!:%d", pt.VehicleId)
-			return
+				return
+			}
 		}
 
 		mm := &MapMarker2{
@@ -468,9 +429,8 @@ func supplyPTCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 		mu.Lock()
 		if mm.lat > 10 {
 			//log.Printf("supplyPTCallback [%s]", mm.GetJson())
-			ioserv.BroadcastToAll("event", mm.GetJson())
+			ioserv.BroadcastToNamespace("/","event", mm.GetJson())
 			//log.Printf("count, passenger: %d - %d = %d", bording_count_reset, getoff_count_reset, passenger)
-			//ioserv.BroadcastToRoom("/", "#", "event", mm.GetJson())
 		}
 		mu.Unlock()
 	}
@@ -498,7 +458,7 @@ func supplyPAgentCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 				jstr := fmt.Sprintf("{ \"ts\": %d.%03d, \"dt\": %s}", seconds, int(nanos/1000000), string(jsonBytes))
 				log.Printf("Lines: %v", jstr)
 				mu.Lock()
-				ioserv.BroadcastToAll("agents", jstr)
+				ioserv.BroadcastToNamespace("/","agents", jstr)
 				mu.Unlock()
 			} else {
 				log.Printf("Invalid Agents! %v count %d", err, len(agents.Agents))
@@ -520,7 +480,7 @@ func supplyPAgentCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 					jstr := fmt.Sprintf("{ \"ts\": %d.%03d, \"dt\": %s}", seconds, int(nanos/1000000), string(jsonBytes))
 					//				log.Printf("Lines: %v", jstr)
 					mu.Lock()
-					ioserv.BroadcastToAll("agents", jstr)
+					ioserv.BroadcastToNamespace("/","agents", jstr)
 					mu.Unlock()
 				} else {
 					log.Printf("Invalid Agents! %v again", err3)
@@ -543,47 +503,27 @@ func subscribePAgentSupply(client *sxutil.SXServiceClient) {
 	}
 }
 
-/*
-func supplyPTCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
-//	pt := sp.GetArg_PTService()
-	if pt != nil { // get Fleet supplu
-		mm := &MapMarker{
-			mtype: pt.VehicleType, // depends on type of GTFS: 1 for Subway, 2, for Rail, 3 for bus
-			id:    pt.VehicleId,
-			lat:   float32(pt.CurrentLocation.GetPoint().Latitude),
-			lon:   float32(pt.CurrentLocation.GetPoint().Longitude),
-			angle: pt.Angle,
-			speed: pt.Speed,
-		}
-		mu.Lock()
-		ioserv.BroadcastToAll("event", mm.GetJson())
-		mu.Unlock()
-	}
-}
-
-func subscribePTSupply(client *sxutil.SXServiceClient) {
-	ctx := context.Background() //
-	err := client.SubscribeSupply(ctx, supplyPTCallback)
-	log.Printf("Error:Supply %s\n",err.Error())
-}
-*/
-
 func monitorStatus() {
 	for {
-		sxutil.SetNodeStatus(int32(runtime.NumGoroutine()), "HV")
+		ss := fmt.Sprintf("PT:%d vlen:%d, connection:%d",ptcount,len(lastMarkers),ioserv.Count())
+		sxutil.SetNodeStatus(int32(runtime.NumGoroutine()), ss)
 		time.Sleep(time.Second * 3)
 	}
 }
 
 func main() {
-	log.Printf("HarmovisLayers(%s) built %s sha1 %s", sxutil.GitVer, sxutil.BuildTime, sxutil.Sha1Ver)
+	log.Printf("HarmovisMap(%s) built %s sha1 %s", sxutil.GitVer, sxutil.BuildTime, sxutil.Sha1Ver)
 	flag.Parse()
 
-	channelTypes := []uint32{pbase.RIDE_SHARE, pbase.PEOPLE_AGENT_SVC, pbase.GEOGRAPHIC_SVC}
+	channelTypes := []uint32{pbase.RIDE_SHARE, pbase.PEOPLE_AGENT_SVC, pbase.GEOGRAPHIC_SVC, pbase.PT_SERVICE}
 	var rerr error
-	sxServerAddress, rerr = sxutil.RegisterNode(*nodesrv, "HarmoVisLayers", channelTypes, nil)
+	sxServerAddress, rerr = sxutil.RegisterNode(*nodesrv, "HarmoVisMap", channelTypes, nil)
 	if rerr != nil {
 		log.Fatal("Can't register node ", rerr)
+	}
+
+	if *localsx != "" {
+		sxServerAddress = *localsx
 	}
 	log.Printf("Connecting SynerexServer at [%s]\n", sxServerAddress)
 
@@ -592,11 +532,14 @@ func main() {
 
 	wg := sync.WaitGroup{} // for syncing other goroutines
 
+	log.Printf("start server")
 	ioserv = run_server()
+	log.Printf("done server")
 
 	if ioserv == nil {
 		os.Exit(1)
 	}
+	go ioserv.Serve() // !!
 
 	client := sxutil.GrpcConnectServer(sxServerAddress) // if there is server address change, we should do it!
 
