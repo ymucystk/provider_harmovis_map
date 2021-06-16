@@ -81,3 +81,4 @@ declare module "@deck.gl/extensions" {
     constructor(props: any);
   }
 }
+declare module "@loaders.gl/obj" ;

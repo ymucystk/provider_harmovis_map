@@ -14,6 +14,11 @@ import {
 
 import {GeoJsonLayer, LineLayer, ArcLayer, ScatterplotLayer} from '@deck.gl/layers'
 
+import {registerLoaders} from '@loaders.gl/core';
+import {OBJLoader} from '@loaders.gl/obj';
+registerLoaders([OBJLoader]);
+const futureCarmesh = '../icon/FutureCar.obj';
+
 import BarLayer from './BarLayer'
 import MeshLayer from './MeshLayer'
 import BarGraphInfoCard from '../components/BarGraphInfoCard'
@@ -92,7 +97,7 @@ class App extends Container<any,any> {
 		}
 
 		setSecPerHour(4800)
-		setLeading(3)
+		setLeading(5)
 		setTrailing(0)
 		setNoLoop(true);
 
@@ -127,6 +132,18 @@ class App extends Container<any,any> {
 
 
 //		this._onViewStateChange = this._onViewStateChange.bind(this)
+
+		this.socketDataObj = [];
+		this.intervalID = window.setInterval(this.updateMovesBase.bind(this),1000);
+	}
+	intervalID: number;
+	socketDataObj:any[];
+
+	componentWillUnmount(){
+		super.componentWillUnmount();
+		if (this.intervalID) {
+			window.clearInterval(this.intervalID);
+		}
 	}
 
 	setSampleMesh(){
@@ -527,63 +544,73 @@ class App extends Container<any,any> {
 
 
 	getEvent (socketData:any) {
-		const { actions, movesbase } = this.props
-		const { mtype, id, lat, lon, angle, speed, passenger, etime} = JSON.parse(socketData)
-		const elapsedtime = Date.parse(etime)/1000;
-		let hit = false
-		const movesbasedata = [...movesbase] // why copy !?
-		const setMovesbase = []
-		if(lat > 90 || lat < -90 || lon > 180 || lon < -180){
-			console.log({lon,lat})
-		}
+		const receiveData = JSON.parse(socketData);
+		this.socketDataObj.push(receiveData);
+	}
 
-		for (let i = 0, lengthi = movesbasedata.length; i < lengthi; i += 1) {
-			let setMovedata = movesbasedata[i]
-			if (mtype === setMovedata.mtype && id === setMovedata.id) {
-				hit = true
-				if(setMovedata.arrivaltime < elapsedtime){
-					setMovedata.arrivaltime = elapsedtime
-					setMovedata.operation.push({
-						elapsedtime: elapsedtime,
-						position: [lon, lat, 0],
-						angle, speed,
-						optElevation:[passenger]
-					})
-				}else
-				if(setMovedata.departuretime > elapsedtime){
-					setMovedata.departuretime = elapsedtime
-					setMovedata.operation.push({
-						elapsedtime: elapsedtime,
-						position: [lon, lat, 0],
-						angle, speed,
-						optElevation:[passenger]
-					})
-				}else
-				if(setMovedata.arrivaltime > elapsedtime){
-					setMovedata.operation.push({
-						elapsedtime: elapsedtime,
-						position: [lon, lat, 0],
-						angle, speed,
-						optElevation:[passenger]
-					})
+	updateMovesBase(){
+		if(this.socketDataObj.length <= 0){return;}
+		const receiveDataArray = [...this.socketDataObj];
+		this.socketDataObj = [];
+		const { actions, movesbase } = this.props
+		const movesbasedata = [...movesbase] // why copy !?
+		for(let i=0; i<receiveDataArray.length; i+=1){
+			const { mtype, id, lat, lon, angle, speed, passenger, etime} = receiveDataArray[i]
+			const elapsedtime = Date.parse(etime)/1000;
+			let hit = false
+			if(lat > 90 || lat < -90 || lon > 180 || lon < -180){
+				console.log({lon,lat})
+			}
+	
+			for (let i = 0, lengthi = movesbasedata.length; i < lengthi; i += 1) {
+				const setMovedata = movesbasedata[i]
+				if (mtype === setMovedata.mtype && id === setMovedata.id) {
+					hit = true
+					if(setMovedata.arrivaltime < elapsedtime){
+						setMovedata.arrivaltime = elapsedtime
+						setMovedata.operation.push({
+							elapsedtime: elapsedtime,
+							position: [lon, lat, 0],
+							angle, speed,
+							optElevation:[passenger]
+						})
+					}else
+					if(setMovedata.departuretime > elapsedtime){
+						setMovedata.departuretime = elapsedtime
+						setMovedata.operation.push({
+							elapsedtime: elapsedtime,
+							position: [lon, lat, 0],
+							angle, speed,
+							optElevation:[passenger]
+						})
+					}else
+					if(setMovedata.arrivaltime > elapsedtime){
+						setMovedata.operation.push({
+							elapsedtime: elapsedtime,
+							position: [lon, lat, 0],
+							angle, speed,
+							optElevation:[passenger]
+						})
+					}
+					break;
 				}
 			}
-			setMovesbase.push(setMovedata)
+			if (!hit) {
+				const type = movesbasedata.length;
+				movesbasedata.push({
+					mtype, id, type,
+					departuretime: elapsedtime,
+					arrivaltime: elapsedtime,
+					operation: [{
+						elapsedtime: elapsedtime,
+						position: [lon, lat, 0],
+						angle, speed,
+						optElevation:[passenger]
+					}]
+				});
+			}
 		}
-		if (!hit) {
-			setMovesbase.push({
-				mtype, id,
-				departuretime: elapsedtime,
-				arrivaltime: elapsedtime,
-				operation: [{
-					elapsedtime: elapsedtime,
-					position: [lon, lat, 0],
-					angle, speed,
-					optElevation:[passenger]
-				}]
-			})
-		}
-		actions.updateMovesBase(setMovesbase)
+		actions.updateMovesBase(movesbasedata)
 	}
 
 	deleteMovebase (maxKeepSecond :any) {
@@ -856,7 +883,8 @@ class App extends Container<any,any> {
 					optionDisplayPosition: sizeScale + zoomDiff,
 					getCubeColor: (x: any) => x.optColor || [[255,255,255]],
 					sizeScale: sizeScale,
-					iconChange: true,
+					iconlayer: 'SimpleMesh',
+					mesh: futureCarmesh,
 					optionChange: false, // this.state.optionChange,
 					optionArcVisible: false,
 					optionLineVisible: false,
