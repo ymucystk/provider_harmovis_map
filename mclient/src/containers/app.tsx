@@ -1,6 +1,5 @@
 import React from 'react'
 
-import { useSelector, useDispatch } from 'react-redux'
 import * as actions from '../actions/actions'
 
 import {
@@ -107,6 +106,7 @@ class App extends Container<any,any> {
 		this.state = {
 			moveDataVisible: true,
 			moveOptionVisible: true,
+			playbackMode: false,
 			depotOptionVisible: false,
 			controlVisible: true,
 			fpsVisible:true,
@@ -544,6 +544,7 @@ class App extends Container<any,any> {
 
 
 	getEvent (socketData:any) {
+		if(this.state.playbackMode){return;}
 		const receiveData = JSON.parse(socketData);
 		this.socketDataObj.push(receiveData);
 	}
@@ -668,6 +669,18 @@ class App extends Container<any,any> {
 		this.setState({ moveOptionVisible: e.target.checked })
 	}
 
+	getPlaybackModeChecked (e :any) {
+		if (this.intervalID) {
+			window.clearInterval(this.intervalID);
+			this.intervalID = window.setInterval(this.updateMovesBase.bind(this),1000);
+			this.socketDataObj = [];
+		}
+		const { actions } = this.props;
+		actions.setInputFilename({ movesFileName: null });
+		actions.setMovesBase([]);
+		this.setState({ playbackMode: e.target.checked })
+	}
+	
 	getDepotOptionChecked (e :any) {
 		this.setState({ depotOptionVisible: e.target.checked })
 	}
@@ -927,6 +940,7 @@ class App extends Container<any,any> {
 				deleteMovebase={this.deleteMovebase.bind(this)}
 				getMoveDataChecked={this.getMoveDataChecked.bind(this)}
 				getMoveOptionChecked={this.getMoveOptionChecked.bind(this)}
+				getPlaybackModeChecked={this.getPlaybackModeChecked.bind(this)}
 				getDepotOptionChecked={this.getDepotOptionChecked.bind(this)}
 				getOptionChangeChecked={this.getOptionChangeChecked.bind(this)}
 				/>

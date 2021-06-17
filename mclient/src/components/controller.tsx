@@ -1,11 +1,10 @@
 import * as React from 'react'
-import { DepotsInput,
-  AddMinutesButton, PlayButton, PauseButton, ReverseButton, ForwardButton,
+import { MovesInput,
+  PlayButton, PauseButton, ReverseButton, ForwardButton,
   ElapsedTimeRange, ElapsedTimeValue, SpeedRange, SpeedValue, SimulationDateTime,
-  NavigationButton, BasedProps, ClickedObject, RoutePaths } from 'harmoware-vis'
+  NavigationButton, ClickedObject, RoutePaths } from 'harmoware-vis'
 import { Icon } from 'react-icons-kit'
-import { ic_delete_forever as icDeleteForever, ic_save as icSave,
-  ic_layers as icLayers, ic_delete as icDelete } from 'react-icons-kit/md'
+import { ic_delete as icDelete } from 'react-icons-kit/md'
 
 import HeatmapRaidusRange from '../containers/HeatmapRaidusRange'
 import HeatmapHeight from '../containers/HeatmapHeight'
@@ -55,6 +54,7 @@ interface ControllerProps {
   animateReverse: boolean,
   getMoveDataChecked: any, 
   getMoveOptionChecked: any, 
+  getPlaybackModeChecked: any,
   getDepotOptionChecked: any ,
   getOptionChangeChecked: any, 
   inputFileName: any, 
@@ -68,7 +68,8 @@ interface ContState {
   saveRouteGroup: {
     clickedObject: ClickedObject[],
     routePaths: RoutePaths[],
-  }[]
+  }[],
+  playbackMode:boolean
 
 }
 
@@ -79,6 +80,7 @@ export default class Controller extends React.Component<ControllerProps, ContSta
         currentGroupindex: 0,
        routeGroupDisplay: false,
        saveRouteGroup: [],
+       playbackMode:false
       }
   }
 
@@ -166,15 +168,18 @@ export default class Controller extends React.Component<ControllerProps, ContSta
     downLoadLink.click();
   }
 
+  getPlaybackModeChecked (e :any) {
+    this.setState({ playbackMode: e.target.checked })
+    this.props.getPlaybackModeChecked(e);
+  }
+
   render () {
     const { settime, timeBegin, leading, timeLength, actions,
       secperhour, animatePause, animateReverse,
-      getMoveDataChecked, getMoveOptionChecked, getDepotOptionChecked,
-      getOptionChangeChecked, inputFileName, viewport } = this.props
+      getMoveDataChecked, getMoveOptionChecked,
+      inputFileName, viewport } = this.props
 
-    const { currentGroupindex, routeGroupDisplay, saveRouteGroup } = this.state
-    const displayIndex = saveRouteGroup.length ? currentGroupindex + 1 : 0
-    const { depotsFileName } = inputFileName
+    const { movesFileName } = inputFileName
 
     return (
       <div className='harmovis_controller'>
@@ -207,11 +212,27 @@ export default class Controller extends React.Component<ControllerProps, ContSta
             </li>
             */}
 
-            <li><span>移動データセーブ</span>
+            <li>
+              <div className='form-check'>
+                <input type='checkbox' id='PlaybackModeChecked' onChange={this.getPlaybackModeChecked.bind(this)} className='form-check-input' defaultChecked={false} />
+                <label htmlFor='PlaybackModeChecked' className='form-check-label'>データ再生モード</label>
+              </div>
+            </li>
+
+            <li style={this.state.playbackMode?{'display': 'none'}:{}}><span>移動データセーブ</span>
               <div className='btn-group d-flex' role='group'>
                 <button className='btn btn-outline-light btn-sm w-100' onClick={this.movesBaseSave.bind(this)}>
                   <span className='button_span'>Data Save</span>
                 </button>
+              </div>
+            </li>            
+
+            <li style={this.state.playbackMode?{}:{'display': 'none'}}><span>移動データロード</span>
+              <div className='harmovis_input_button_column'>
+                <label htmlFor="MovesInput" className="btn btn-outline-light btn-sm w-100" title='運行データ選択'>
+                <span className='button_span'>Data Load</span><MovesInput actions={actions} id="MovesInput" />
+                </label>
+                <div>{movesFileName || '選択されていません'}</div>
               </div>
             </li>            
 
