@@ -3,8 +3,8 @@ import React from 'react'
 import * as actions from '../actions/actions'
 
 import {
-	Container, connectToHarmowareVis, HarmoVisLayers, MovesLayer, MovesInput,
-	LoadingIcon, FpsDisplay, Movesbase, Actions, LineMapLayer
+	Container, connectToHarmowareVis, HarmoVisLayers, MovesLayer,
+	LoadingIcon, FpsDisplay, Movesbase
 } from 'harmoware-vis'
 
 // import './App.scss';
@@ -144,44 +144,6 @@ class App extends Container<any,any> {
 		if (this.intervalID) {
 			window.clearInterval(this.intervalID);
 		}
-	}
-
-	setSampleMesh(){
-				// math
-		// nagoya lat, lon = 35.181433 136.906421
-		const {lat, lon} = {lat:35.181433, lon:136.906421} 
-		const msize = 0.01;
-
-
-		const mbase = {
-//			departuretime: 1592717000, // 2020/06/21
-//			arrivaltime:   1592729000,
-			mid: 1000000,
-			operation:[] as any[],
-		}
-		const nowDateTime = Math.floor( new Date().getTime()/1000.0)
-
-		for (let i = 0; i< 200; i ++){
-			mbase.operation[i]={
-				elapsedtime: nowDateTime+i,
-				meshItems: [] as MeshItem[]
-			}
-			for (let xx = 0; xx< 40; xx ++){
-				for (let yy = 0; yy< 30; yy ++){
-					const v = xx*5+yy*5+1
-					mbase.operation[i].meshItems.push({
-						pos:[lon+msize*xx,lat+msize*yy],
-						col: [48,128,(v/2+i*2)%256,190],
-						val: v+i*20
-					})
-				}
-			}
-		}
-
-//		store.dispatch(actions.toggleHeatmap(false));
-//		console.log("mbase:",mbase)
-		this.props.actions.updateMovesBase([mbase])
-
 	}
 
 	resolveHarmoVISConf(conf: any){
@@ -328,19 +290,11 @@ class App extends Container<any,any> {
 	}
 	
 
-	bin2String (array :any) {
-		return String.fromCharCode.apply(String, array)
-  	}
-
 	getGeoJson (data :string) {
 		console.log('Geojson:' + data.length)
 //		console.log(data)
 //		this.setState({ geojson: JSON.parse(data) })
 		store.dispatch(actions.addGeoJsonData(data))
-	}
-	getClearMoves (data :any) {
-		console.log('GetClearMoves:' + data)
-		this.deleteMovebase(0)
 	}
 
 	getBearing (data :any ) {
@@ -572,6 +526,7 @@ class App extends Container<any,any> {
 						setMovedata.operation.push({
 							elapsedtime: elapsedtime,
 							position: [lon, lat, 0],
+							color: setMovedata.operation[0].color,
 							angle, speed,
 							optElevation:[passenger]
 						})
@@ -581,6 +536,7 @@ class App extends Container<any,any> {
 						setMovedata.operation.push({
 							elapsedtime: elapsedtime,
 							position: [lon, lat, 0],
+							color: setMovedata.operation[0].color,
 							angle, speed,
 							optElevation:[passenger]
 						})
@@ -589,6 +545,7 @@ class App extends Container<any,any> {
 						setMovedata.operation.push({
 							elapsedtime: elapsedtime,
 							position: [lon, lat, 0],
+							color: setMovedata.operation[0].color,
 							angle, speed,
 							optElevation:[passenger]
 						})
@@ -597,6 +554,9 @@ class App extends Container<any,any> {
 				}
 			}
 			if (!hit) {
+				const rgb = Math.floor( Math.random() * 3 );
+				const color = [0,0,0,255];
+				color[rgb] = 255;
 				const type = movesbasedata.length;
 				movesbasedata.push({
 					mtype, id, type,
@@ -606,7 +566,8 @@ class App extends Container<any,any> {
 						elapsedtime: elapsedtime,
 						position: [lon, lat, 0],
 						angle, speed,
-						optElevation:[passenger]
+						optElevation:[passenger],
+						color,
 					}]
 				});
 			}
@@ -716,14 +677,13 @@ class App extends Container<any,any> {
 		this.props.actions.setViewport({maxZoom:18, minZoom:1, maxPitch:85})
 //		const { setNoLoop } = this.props.actions
 //		setNoLoop(true); // no loop on time end.
-//		this.setSampleMesh()
 	}
 
 	render () {
 		const props = this.props
-		const { actions, clickedObject, inputFileName, viewport, deoptsData, loading, lines, arcs, scatters, geojson,
+		const { actions, clickedObject, viewport, lines, arcs, scatters, geojson,
 			arcVisible, scatterVisible, scatterFill, scatterMode, 
-			routePaths, lightSettings, movesbase, movedData, mapStyle ,extruded, gridSize,gridHeight, enabledHeatmap, selectedType,
+			routePaths, movesbase, movedData, extruded, gridSize,gridHeight, enabledHeatmap, selectedType,
 			widthRatio, heightRatio, radiusRatio, showTitle, infoBalloonList,  settime, titlePosOffset, titleSize,
 			labelText, labelStyle,
 			meshVisible, mesh3D, meshWire, meshRadius, meshHeight, meshPolyNum, meshAngle,
