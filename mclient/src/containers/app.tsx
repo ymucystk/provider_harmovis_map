@@ -134,7 +134,7 @@ class App extends Container<any,any> {
 //		this._onViewStateChange = this._onViewStateChange.bind(this)
 
 		this.socketDataObj = [];
-		this.intervalID = window.setInterval(this.updateMovesBase.bind(this),1000);
+		this.intervalID = window.setInterval(this.updateMovesBase.bind(this),5000);
 	}
 	intervalID: number;
 	socketDataObj:any[];
@@ -509,59 +509,21 @@ class App extends Container<any,any> {
 		this.socketDataObj = [];
 		const { actions, movesbase } = this.props
 		const movesbasedata = [...movesbase] // why copy !?
+		let update = 0;
 		for(let i=0; i<receiveDataArray.length; i+=1){
 			const { mtype, id, lat, lon, angle, speed, passenger, etime} = receiveDataArray[i]
 			const elapsedtime = Date.parse(etime)/1000;
-			let hit = false
 			if(lat > 90 || lat < -90 || lon > 180 || lon < -180){
 				console.log({lon,lat})
 			}
 	
-			for (let i = 0, lengthi = movesbasedata.length; i < lengthi; i += 1) {
-				const setMovedata = movesbasedata[i]
-				if (mtype === setMovedata.mtype && id === setMovedata.id) {
-					hit = true
-					if(setMovedata.arrivaltime < elapsedtime){
-						setMovedata.arrivaltime = elapsedtime
-						setMovedata.operation.push({
-							elapsedtime: elapsedtime,
-							position: [lon, lat, 0],
-							color: setMovedata.operation[0].color,
-							angle, speed,
-							optElevation:[passenger]
-						})
-					}else
-					if(setMovedata.departuretime > elapsedtime){
-						setMovedata.departuretime = elapsedtime
-						setMovedata.operation.push({
-							elapsedtime: elapsedtime,
-							position: [lon, lat, 0],
-							color: setMovedata.operation[0].color,
-							angle, speed,
-							optElevation:[passenger]
-						})
-					}else
-					if(setMovedata.arrivaltime > elapsedtime){
-						setMovedata.operation.push({
-							elapsedtime: elapsedtime,
-							position: [lon, lat, 0],
-							color: setMovedata.operation[0].color,
-							angle, speed,
-							optElevation:[passenger]
-						})
-					}
-					break;
-				}
-			}
-			if (!hit) {
+			const idx = movesbasedata.findIndex(x=>(x.mtype===mtype && x.id===id));
+			if(idx<0){
 				const rgb = Math.floor( Math.random() * 3 );
 				const color = [0,0,0,255];
 				color[rgb] = 255;
-				const type = movesbasedata.length;
 				movesbasedata.push({
-					mtype, id, type,
-					departuretime: elapsedtime,
-					arrivaltime: elapsedtime,
+					mtype, id,
 					operation: [{
 						elapsedtime: elapsedtime,
 						position: [lon, lat, 0],
@@ -570,9 +532,24 @@ class App extends Container<any,any> {
 						color,
 					}]
 				});
+				update+=1
+			}else{
+				const setMovedata = movesbasedata[idx]
+				if(setMovedata.arrivaltime < elapsedtime){
+					setMovedata.operation.push({
+						elapsedtime: elapsedtime,
+						position: [lon, lat, 0],
+						angle, speed,
+						optElevation:[passenger],
+						color: setMovedata.operation[0].color,
+					})
+					update+=1
+				}
 			}
 		}
-		actions.updateMovesBase(movesbasedata)
+		if(update>0){
+			actions.updateMovesBase(movesbasedata)
+		}
 	}
 
 	deleteMovebase (maxKeepSecond :any) {
@@ -633,7 +610,7 @@ class App extends Container<any,any> {
 	getPlaybackModeChecked (e :any) {
 		if (this.intervalID) {
 			window.clearInterval(this.intervalID);
-			this.intervalID = window.setInterval(this.updateMovesBase.bind(this),1000);
+			this.intervalID = window.setInterval(this.updateMovesBase.bind(this),5000);
 			this.socketDataObj = [];
 		}
 		const { actions } = this.props;
