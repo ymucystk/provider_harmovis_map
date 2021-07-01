@@ -47,7 +47,7 @@ class App extends Container<any,any> {
 
 	constructor (props: any) {
 		super(props)
-		const { setSecPerHour, setLeading, setTrailing, setNoLoop } = props.actions
+		const { setViewport, setSecPerHour, setLeading, setTrailing, setNoLoop } = props.actions
 		const worker = new Worker('socketWorker.js'); // worker for socket-io communication.
 		const self = this;
 		worker.onmessage = (e) => {
@@ -95,6 +95,7 @@ class App extends Container<any,any> {
 
 		}
 
+		setViewport({ longitude:137.17918189560365, latitude:34.85075479101113, zoom:10 })
 		setSecPerHour(4800)
 		setLeading(5)
 		setTrailing(0)
