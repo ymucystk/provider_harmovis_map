@@ -520,9 +520,11 @@ class App extends Container<any,any> {
 	
 			const idx = movesbasedata.findIndex(x=>(x.mtype===mtype && x.id===id));
 			if(idx<0){
-				const rgb = Math.floor( Math.random() * 3 );
-				const color = [0,0,0,255];
-				color[rgb] = 255;
+				const colStr = receiveDataArray[i].color;
+				const strLen = colStr.length;
+				const color = [parseInt(colStr.slice(0,-4),16),
+					parseInt(colStr.slice(-4,-2),16),
+					parseInt(colStr.slice(-2,strLen),16),255];
 				movesbasedata.push({
 					mtype, id,
 					operation: [{

@@ -37,26 +37,26 @@ type MapMarker2 struct {
 	angle     float32 `json:"angle"`
 	speed     int32   `json:"speed"`
 	passenger int32   `json:"passenger"`
-	etime     string	`json:"etime"`
-	color	  string	`json:"color"`
+	etime     string  `json:"etime"`
+	color     string  `json:"color"`
 }
 
 var (
 	nodesrv         = flag.String("nodesrv", "127.0.0.1:9990", "Node ID Server")
 	assetDir        = flag.String("assetdir", "", "set Web client dir")
 	mapbox          = flag.String("mapbox", "", "Set Mapbox access token")
-	idcolor			= flag.String("idcolor","","id-color mapping setting")
+	idcolor         = flag.String("idcolor", "idcolor.map", "id-color mapping setting")
 	port            = flag.Int("port", 3030, "HarmoVis Ext Provider Listening Port")
-	localsx         = flag.String("localsx","","Local Synerex Server")
-	noskip		= flag.Bool("noskip",false,"Do not skip data")
+	localsx         = flag.String("localsx", "", "Local Synerex Server")
+	noskip          = flag.Bool("noskip", false, "Do not skip data")
 	mu              = new(sync.Mutex)
 	assetsDir       http.FileSystem
 	ioserv          *socketio.Server
 	sxServerAddress string
 	mapboxToken     string
 	lastMarkers     map[int32]*MapMarker2 // 過去のマーカ情報の記録（時刻以外の変化を見るため）
-	colMap			map[int32]string      // ID から色へのマップ
-	ptcount	= 0
+	colMap          map[int32]string      // ID から色へのマップ
+	ptcount         = 0
 )
 
 func init() { // initialize function
@@ -123,12 +123,11 @@ func run_server() *socketio.Server {
 		return nil
 	})
 
-	server.OnEvent("/","#", func(c socketio.Conn) {
+	server.OnEvent("/", "#", func(c socketio.Conn) {
 		log.Printf("Request! %v", c)
 	})
 
-
-	server.OnEvent("/","get_mapbox_token", func(c socketio.Conn) {
+	server.OnEvent("/", "get_mapbox_token", func(c socketio.Conn) {
 		log.Printf("Requested mapbox access token")
 		mapboxToken = os.Getenv("MAPBOX_ACCESS_TOKEN")
 		if *mapbox != "" {
@@ -141,7 +140,6 @@ func run_server() *socketio.Server {
 	server.OnError("/", func(s socketio.Conn, e error) {
 		log.Printf("SocketErr ID:%s err %v", s.ID(), s.RemoteAddr(), e)
 	})
-	
 
 	server.OnDisconnect("/", func(s socketio.Conn, reason string) {
 		resp := server.LeaveRoom("/", "#", s)
@@ -188,7 +186,7 @@ func supplyRideCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 		//		jsondata, err := json.Marshal(*mm)
 		//		fmt.Println("rcb",mm.GetJson())
 		mu.Lock()
-			ioserv.BroadcastToNamespace("/", "event", mm.GetJson())
+		ioserv.BroadcastToNamespace("/", "event", mm.GetJson())
 		mu.Unlock()
 	}
 }
@@ -249,7 +247,7 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			log.Printf("LinesParsed: %d", len(jsonBytes))
 
 			mu.Lock()
-			ioserv.BroadcastToNamespace("/","lines", string(jsonBytes))
+			ioserv.BroadcastToNamespace("/", "lines", string(jsonBytes))
 			mu.Unlock()
 		}
 	case "ViewState":
@@ -260,7 +258,7 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			log.Printf("ViewState: %v", string(jsonBytes))
 
 			mu.Lock()
-			ioserv.BroadcastToNamespace("/","viewstate", string(jsonBytes))
+			ioserv.BroadcastToNamespace("/", "viewstate", string(jsonBytes))
 			mu.Unlock()
 		}
 
@@ -272,7 +270,7 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			jsonStr := string(jsonBytes)
 			//			log.Printf("BarGraphs: %v", jsonStr)
 			mu.Lock()
-			ioserv.BroadcastToNamespace("/","bargraphs", jsonStr)
+			ioserv.BroadcastToNamespace("/", "bargraphs", jsonStr)
 			mu.Unlock()
 		}
 
@@ -284,7 +282,7 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			//			log.Printf("ClearMoves: %v", string(jsonBytes))
 
 			mu.Lock()
-			ioserv.BroadcastToNamespace("/","clearMoves", string(jsonBytes))
+			ioserv.BroadcastToNamespace("/", "clearMoves", string(jsonBytes))
 			mu.Unlock()
 		}
 	case "Pitch":
@@ -295,7 +293,7 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			//			log.Printf("Pitch: %v", string(jsonBytes))
 
 			mu.Lock()
-			ioserv.BroadcastToNamespace("/","pitch", string(jsonBytes))
+			ioserv.BroadcastToNamespace("/", "pitch", string(jsonBytes))
 			mu.Unlock()
 		}
 	case "Bearing":
@@ -306,7 +304,7 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			//			log.Printf("Bearing: %v", string(jsonBytes))
 
 			mu.Lock()
-			ioserv.BroadcastToNamespace("/","bearing", string(jsonBytes))
+			ioserv.BroadcastToNamespace("/", "bearing", string(jsonBytes))
 			mu.Unlock()
 		}
 
@@ -317,14 +315,14 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			jsonBytes, _ := json.Marshal(cms)
 			//			log.Printf("Arcs: %v", string(jsonBytes))
 			mu.Lock()
-			ioserv.BroadcastToNamespace("/","arcs", string(jsonBytes))
+			ioserv.BroadcastToNamespace("/", "arcs", string(jsonBytes))
 			mu.Unlock()
 		}
 
 	case "ClearArcs":
 		log.Printf("clearArc!")
 		mu.Lock()
-		ioserv.BroadcastToNamespace("/","clearArcs", string(0))
+		ioserv.BroadcastToNamespace("/", "clearArcs", string(0))
 		mu.Unlock()
 
 	case "Scatters":
@@ -334,14 +332,14 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			jsonBytes, _ := json.Marshal(cms)
 			//			log.Printf("Scatters: %v", string(jsonBytes))
 			mu.Lock()
-			ioserv.BroadcastToNamespace("/","scatters", string(jsonBytes))
+			ioserv.BroadcastToNamespace("/", "scatters", string(jsonBytes))
 			mu.Unlock()
 		}
 
 	case "ClearScatters":
 		log.Printf("clearScatter!")
 		mu.Lock()
-		ioserv.BroadcastToNamespace("/","clearScatters", string(0))
+		ioserv.BroadcastToNamespace("/", "clearScatters", string(0))
 		mu.Unlock()
 
 	case "TopTextLabel":
@@ -353,7 +351,7 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			jsonBytes, _ := json.Marshal(cms)
 			//			log.Printf("LabelInfo: %v", string(jsonBytes))
 			mu.Lock()
-			ioserv.BroadcastToNamespace("/","topLabelInfo", string(jsonBytes))
+			ioserv.BroadcastToNamespace("/", "topLabelInfo", string(jsonBytes))
 			mu.Unlock()
 
 		}
@@ -364,7 +362,7 @@ func supplyGeoCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 		if err == nil {
 			jsonBytes, _ := json.Marshal(cms)
 			mu.Lock()
-			ioserv.BroadcastToNamespace("/","harmovis", string(jsonBytes))
+			ioserv.BroadcastToNamespace("/", "harmovis", string(jsonBytes))
 			mu.Unlock()
 
 		}
@@ -398,7 +396,7 @@ func hsin(theta float64) float64 {
 // http://en.wikipedia.org/wiki/Haversine_formula
 func Distance(lat1, lon1, lat2, lon2 float64) float64 {
 	// convert to radians
-  // must cast radius as float to multiply later
+	// must cast radius as float to multiply later
 	var la1, lo1, la2, lo2, r float64
 	la1 = lat1 * math.Pi / 180
 	lo1 = lon1 * math.Pi / 180
@@ -416,13 +414,13 @@ func Distance(lat1, lon1, lat2, lon2 float64) float64 {
 func supplyPTCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 	pt := &pt.PTService{}
 	err := proto.Unmarshal(sp.Cdata.Entity, pt)
-	ptcount ++;
+	ptcount++
 
 	if err == nil { // get PT
 		jsontoken := strings.Split(sp.ArgJson, ",")
-		if len(jsontoken)< 26{
-			log.Printf("Data Error: small length! %d < 26[%s]",len(jsontoken),sp.ArgJson)
-			return  // can't process more..
+		if len(jsontoken) < 26 {
+			log.Printf("Data Error: small length! %d < 26[%s]", len(jsontoken), sp.ArgJson)
+			return // can't process more..
 		}
 		tstr := strings.Split(jsontoken[7], ".")[0]
 		datestr := jsontoken[6] + " " + tstr + " (JST)"
@@ -431,7 +429,7 @@ func supplyPTCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 		getoff_count_reset, _ := strconv.Atoi(jsontoken[25])  // エンジン起動以後の降車人数
 		passenger := bording_count_reset - getoff_count_reset
 		if passenger < 0 {
-			log.Printf("Minus passenger!, ID:%d, count:%d, board:%d, getoff:%d", pt.VehicleId, passenger, bording_count_reset ,getoff_count_reset )
+			//			log.Printf("Minus passenger!, ID:%d, count:%d, board:%d, getoff:%d", pt.VehicleId, passenger, bording_count_reset ,getoff_count_reset )
 			passenger = 0
 		} // 乗車人数は 0以上とする。（本来であれば、乗車数のカウントミス）
 
@@ -440,7 +438,7 @@ func supplyPTCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 		if !*noskip {
 
 			if lastMarker != nil && lastMarker.etime == datestr { // no time change
-			//	log.Printf("Same time! %d", pt.VehicleId)
+				//	log.Printf("Same time! %d", pt.VehicleId)
 				return
 			}
 
@@ -449,34 +447,33 @@ func supplyPTCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 				lastMarker.angle == pt.Angle &&
 				lastMarker.speed == pt.Speed &&
 				passenger == int(lastMarker.passenger) { // no change without time
-			//			log.Printf("Same data!:%d", pt.VehicleId)
+				//			log.Printf("Same data!:%d", pt.VehicleId)
 				return
 			}
 		}
 		// set color!
 		col, ok := colMap[pt.VehicleId]
 		if !ok {
-			col = "3cb371"  // default green color
+			col = "3cb371" // default green color
 			//
 			if *noskip && *idcolor != "" {
-				log.Printf("Can't find id-color mapping of ID %d",pt.VehicleId)
-			}	
+				log.Printf("Can't find id-color mapping of ID %d", pt.VehicleId)
+			}
 		}
 
 		// 時刻が近くて(文字列的に1文字違い)
 		if lastMarker != nil {
-			ss := lastMarker.etime[:len(lastMarker.etime)-7] // "X (JST)"　をはずす 
-			if  ss == datestr[:len(datestr)-7] {
+			ss := lastMarker.etime[:len(lastMarker.etime)-7] // "X (JST)"　をはずす
+			if ss == datestr[:len(datestr)-7] {
 				//	log.Printf("Less time %s %s", lastMarker.etime, datestr)
-				dist := Distance(float64(lastMarker.lat), float64(lastMarker.lon), float64(pt.Lat),float64(pt.Lon))
-				if  dist > 100 { // 100m /秒
-					log.Printf("BigJump id:%d, %f m, %s - %s",pt.VehicleId, dist, lastMarker.etime, datestr)
-				}else{
-//					log.Printf("Dist id:%d, dist:%f m",pt.VehicleId, dist)
+				dist := Distance(float64(lastMarker.lat), float64(lastMarker.lon), float64(pt.Lat), float64(pt.Lon))
+				if dist > 100 { // 100m /秒
+					log.Printf("BigJump id:%d, %f m, %s - %s", pt.VehicleId, dist, lastMarker.etime, datestr)
+				} else {
+					//					log.Printf("Dist id:%d, dist:%f m",pt.VehicleId, dist)
 				}
 			}
 		}
-
 
 		mm := &MapMarker2{
 			mtype:     pt.VehicleType, // depends on type of GTFS: 1 for Subway, 2, for Rail, 3 for bus
@@ -487,7 +484,7 @@ func supplyPTCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 			speed:     pt.Speed,
 			passenger: int32(passenger),
 			etime:     datestr,
-			color: 	   col,
+			color:     col,
 		}
 
 		lastMarkers[pt.VehicleId] = mm // record
@@ -495,7 +492,7 @@ func supplyPTCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 		mu.Lock()
 		if mm.lat > 10 {
 			//log.Printf("supplyPTCallback [%s]", mm.GetJson())
-			ioserv.BroadcastToNamespace("/","event", mm.GetJson())
+			ioserv.BroadcastToNamespace("/", "event", mm.GetJson())
 			//log.Printf("count, passenger: %d - %d = %d", bording_count_reset, getoff_count_reset, passenger)
 		}
 		mu.Unlock()
@@ -524,7 +521,7 @@ func supplyPAgentCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 				jstr := fmt.Sprintf("{ \"ts\": %d.%03d, \"dt\": %s}", seconds, int(nanos/1000000), string(jsonBytes))
 				log.Printf("Lines: %v", jstr)
 				mu.Lock()
-				ioserv.BroadcastToNamespace("/","agents", jstr)
+				ioserv.BroadcastToNamespace("/", "agents", jstr)
 				mu.Unlock()
 			} else {
 				log.Printf("Invalid Agents! %v count %d", err, len(agents.Agents))
@@ -546,7 +543,7 @@ func supplyPAgentCallback(clt *sxutil.SXServiceClient, sp *api.Supply) {
 					jstr := fmt.Sprintf("{ \"ts\": %d.%03d, \"dt\": %s}", seconds, int(nanos/1000000), string(jsonBytes))
 					//				log.Printf("Lines: %v", jstr)
 					mu.Lock()
-					ioserv.BroadcastToNamespace("/","agents", jstr)
+					ioserv.BroadcastToNamespace("/", "agents", jstr)
 					mu.Unlock()
 				} else {
 					log.Printf("Invalid Agents! %v again", err3)
@@ -571,7 +568,7 @@ func subscribePAgentSupply(client *sxutil.SXServiceClient) {
 
 func monitorStatus() {
 	for {
-		ss := fmt.Sprintf("PT:%d vlen:%d, connection:%d",ptcount,len(lastMarkers),ioserv.Count())
+		ss := fmt.Sprintf("PT:%d vlen:%d, connection:%d", ptcount, len(lastMarkers), ioserv.Count())
 		sxutil.SetNodeStatus(int32(runtime.NumGoroutine()), ss)
 		time.Sleep(time.Second * 3)
 	}
@@ -589,12 +586,12 @@ func main() {
 			log.Fatal("Can't open idcolor file", err)
 			return
 		}
-		defer f.Close()	
+		defer f.Close()
 		fileScanner := bufio.NewScanner(f)
 		// read line by line
 		for fileScanner.Scan() {
 			s := fileScanner.Text()
-			if strings.HasPrefix(s,"#"){
+			if strings.HasPrefix(s, "#") {
 				continue
 			}
 			dt := strings.Split(s, " ")
@@ -602,10 +599,10 @@ func main() {
 				continue
 			}
 			id, _ := strconv.Atoi(dt[0])
-			colMap[int32(id)]= dt[1]
+			colMap[int32(id)] = dt[1]
 		}
+		log.Printf("idcolor")
 	}
-
 
 	channelTypes := []uint32{pbase.RIDE_SHARE, pbase.PEOPLE_AGENT_SVC, pbase.GEOGRAPHIC_SVC, pbase.PT_SERVICE}
 	var rerr error
