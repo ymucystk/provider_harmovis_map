@@ -3458,10 +3458,10 @@
     "webpack-sources" "^1.0.1"
     "write-json-file" "^2.3.0"
 
-"harmoware-vis@^1.7.5":
-  "integrity" "sha512-VE2dWjsRHt4Ht6DhuFKTSIwd1WB5/CWUOOMvBLOWoceMjZEVWVtdy0+K6yJRimJPp5RfT9jnJtA1gbUHuCFYEQ=="
-  "resolved" "https://registry.npmjs.org/harmoware-vis/-/harmoware-vis-1.7.5.tgz"
-  "version" "1.7.5"
+"harmoware-vis@^1.7.7":
+  "integrity" "sha512-viZcVmIgIjuVTR70m1RSj2yYLf7f5ZW4xScFtLcXnOputUFZ9NBZ6CeGoW7ejqaU5cjl2lMbkF6SHX54qtECkg=="
+  "resolved" "https://registry.npmjs.org/harmoware-vis/-/harmoware-vis-1.7.7.tgz"
+  "version" "1.7.7"
   dependencies:
     "@luma.gl/core" "^8.4.5"
     "deck.gl" "^8.4.16"
@@ -3469,6 +3469,8 @@
     "mapbox-gl" "^2.3.0"
     "react-icons-kit" "^1.3.1"
     "react-map-gl" "^6.1.16"
+    "react-redux" "^7.2.4"
+    "react-spinners" "^0.10.6"
     "typescript-fsa" "^3.0.0"
     "typescript-fsa-reducers" "^1.2.2"
     "webpack-dev-server" "^3.11.2"

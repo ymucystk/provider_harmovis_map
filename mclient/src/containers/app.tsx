@@ -509,7 +509,7 @@ class App extends Container<any,any> {
 		const receiveDataArray = [...this.socketDataObj];
 		this.socketDataObj = [];
 		const { actions, movesbase } = this.props
-		const movesbasedata = [...movesbase] // why copy !?
+		const movesbasedata = [] // why copy !?
 		let update = 0;
 		for(let i=0; i<receiveDataArray.length; i+=1){
 			const { mtype, id, lat, lon, angle, speed, passenger, etime} = receiveDataArray[i]
@@ -518,8 +518,9 @@ class App extends Container<any,any> {
 				console.log({lon,lat})
 			}
 	
-			const idx = movesbasedata.findIndex(x=>(x.mtype===mtype && x.id===id));
-			if(idx<0){
+			const idx1 = movesbase.findIndex((x:any)=>(x.mtype===mtype && x.id===id));
+			const idx2 = movesbasedata.findIndex((x:any)=>(x.mtype===mtype && x.id===id));
+			if(idx1<0 && idx2<0){
 				const colStr = receiveDataArray[i].color;
 				const strLen = colStr.length;
 				const color = [parseInt(colStr.slice(0,-4),16),
@@ -527,6 +528,7 @@ class App extends Container<any,any> {
 					parseInt(colStr.slice(-2,strLen),16),255];
 				movesbasedata.push({
 					mtype, id,
+					arrivaltime:elapsedtime,
 					operation: [{
 						elapsedtime: elapsedtime,
 						position: [lon, lat, 0],
@@ -536,9 +538,11 @@ class App extends Container<any,any> {
 					}]
 				});
 				update+=1
-			}else{
-				const setMovedata = movesbasedata[idx]
+			}else
+			if(!(idx1<0) && idx2<0){
+				const setMovedata = movesbase[idx1]
 				if(setMovedata.arrivaltime < elapsedtime){
+					setMovedata.arrivaltime = elapsedtime
 					setMovedata.operation.push({
 						elapsedtime: elapsedtime,
 						position: [lon, lat, 0],
@@ -546,12 +550,24 @@ class App extends Container<any,any> {
 						optElevation:[passenger],
 						color: setMovedata.operation[0].color,
 					})
+					movesbasedata.push(setMovedata);
 					update+=1
+				}
+			}else{
+				if(movesbasedata[idx2].arrivaltime < elapsedtime){
+					movesbasedata[idx2].arrivaltime = elapsedtime
+					movesbasedata[idx2].operation.push({
+						elapsedtime: elapsedtime,
+						position: [lon, lat, 0],
+						angle, speed,
+						optElevation:[passenger],
+						color:movesbasedata[idx2].operation[0].color,
+					});
 				}
 			}
 		}
 		if(update>0){
-			actions.updateMovesBase(movesbasedata)
+			actions.addMovesBaseData(movesbasedata)
 		}
 	}
 
