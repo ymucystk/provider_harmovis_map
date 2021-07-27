@@ -3458,10 +3458,10 @@
     "webpack-sources" "^1.0.1"
     "write-json-file" "^2.3.0"
 
-"harmoware-vis@^1.7.7":
-  "integrity" "sha512-viZcVmIgIjuVTR70m1RSj2yYLf7f5ZW4xScFtLcXnOputUFZ9NBZ6CeGoW7ejqaU5cjl2lMbkF6SHX54qtECkg=="
-  "resolved" "https://registry.npmjs.org/harmoware-vis/-/harmoware-vis-1.7.7.tgz"
-  "version" "1.7.7"
+"harmoware-vis@^1.7.8":
+  "integrity" "sha512-C5VlJckb/komGqNcaC4Gw2Q9J48VyngrlqDPIJd/7CtQTNtU9utztAoYtfJaTEHIRXqrSvjDfW0cIn1ssA9pNg=="
+  "resolved" "https://registry.npmjs.org/harmoware-vis/-/harmoware-vis-1.7.8.tgz"
+  "version" "1.7.8"
   dependencies:
     "@luma.gl/core" "^8.4.5"
     "deck.gl" "^8.4.16"
