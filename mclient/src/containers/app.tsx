@@ -535,6 +535,7 @@ class App extends Container<any,any> {
 							angle, speed,
 							optElevation:[passenger],
 							color,
+							routeWidth:passenger,
 						}]
 					});
 				}else{
@@ -547,6 +548,7 @@ class App extends Container<any,any> {
 							angle, speed,
 							optElevation:[passenger],
 							color: setMovedata.operation[0].color,
+							routeWidth:passenger,
 						})
 						updatedata.push(setMovedata);
 					}
@@ -560,6 +562,7 @@ class App extends Container<any,any> {
 						angle, speed,
 						optElevation:[passenger],
 						color:updatedata[idx_upd].operation[0].color,
+						routeWidth:passenger,
 					});
 				}
 			}
@@ -834,7 +837,7 @@ class App extends Container<any,any> {
 			layers.push(
 				new MovesLayer({
 					routePaths, 
-					getRouteWidth: () => 5,
+					getRouteWidth: (x: any) => (x.routeWidth && x.routeWidth+1) || 1,
 					getRouteColor: (x: any) => x.routeColor || [255,165,0],
 					movesbase, 
 					movedData,
