@@ -116,7 +116,7 @@ const getData = (bar: any) => {
         text: bar.text,
     } 
 //    console.log("BarData:",r)
-    return r as BarData
+    return r as Partial<BarData>
 }
 
 
