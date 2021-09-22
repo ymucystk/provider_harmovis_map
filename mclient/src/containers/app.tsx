@@ -47,7 +47,7 @@ class App extends Container<any,any> {
 
 	constructor (props: any) {
 		super(props)
-		const { setViewport, setSecPerHour, setLeading, setTrailing, setNoLoop } = props.actions
+		const { setExtractedDataFunc, setViewport, setSecPerHour, setLeading, setTrailing, setNoLoop } = props.actions
 		const worker = new Worker('socketWorker.js'); // worker for socket-io communication.
 		const self = this;
 		worker.onmessage = (e) => {
@@ -95,11 +95,12 @@ class App extends Container<any,any> {
 
 		}
 
+		setExtractedDataFunc(this.getExtractedDataFunc.bind(this));
 		setViewport({ longitude:137.17918189560365, latitude:34.85075479101113, zoom:10 })
-		setSecPerHour(4800)
-		setLeading(5)
+		setSecPerHour(3600)
+		setLeading(0)
 		setTrailing(0)
-		setNoLoop(true);
+		setNoLoop(true)
 
 
 
@@ -135,10 +136,12 @@ class App extends Container<any,any> {
 //		this._onViewStateChange = this._onViewStateChange.bind(this)
 
 		this.socketDataObj = [];
-		this.intervalID = window.setInterval(this.updateMovesBase.bind(this),5000);
+		this.movesbase = [];
+		//this.intervalID = window.setInterval(this.updateMovesBase.bind(this),5000);
 	}
 	intervalID: number;
 	socketDataObj:any[];
+	movesbase:any[];
 
 	componentWillUnmount(){
 		super.componentWillUnmount();
@@ -500,8 +503,122 @@ class App extends Container<any,any> {
 
 	getEvent (socketData:any) {
 		if(this.state.playbackMode){return;}
+		const { timeBegin, timeLength, actions, noLoop } = this.props
+		const leading = 10;
+		const endTimeMargin = 30;
 		const receiveData = JSON.parse(socketData);
-		this.socketDataObj.push(receiveData);
+		const { mtype, id, lat, lon, angle, speed, passenger, color:colStr, etime} = receiveData;
+		const elapsedtime = Date.parse(etime)/1000;
+		let idx = this.movesbase.findIndex((x:any)=>(x.mtype===mtype && x.id===id));
+		if(idx < 0){
+			this.movesbase.push({mtype,id,departuretime:0,arrivaltime:0,operation:[],movesbaseidx:0});
+			idx = this.movesbase.findIndex((x:any)=>(x.mtype===mtype && x.id===id));
+			this.movesbase[idx].movesbaseidx = idx
+		}
+		const operationLength = this.movesbase[idx].operation.length;
+		let color;
+		if(operationLength > 0){
+			if(this.movesbase[idx].operation[operationLength-1].elapsedtime === elapsedtime){
+				return;
+			}
+			color = this.movesbase[idx].operation[operationLength-1].color;
+			this.movesbase[idx].arrivaltime = elapsedtime;
+		}else{
+			this.movesbase[idx].departuretime = elapsedtime;
+			this.movesbase[idx].arrivaltime = elapsedtime;
+			const strLen = colStr.length;
+			color = [parseInt(colStr.slice(0,-4),16),
+				parseInt(colStr.slice(-4,-2),16),
+				parseInt(colStr.slice(-2,strLen),16),255];
+		}
+		this.movesbase[idx].operation.push({
+			elapsedtime: elapsedtime,
+			position: [lon, lat, 0],
+			direction:angle, angle, speed, color,
+			optElevation:[passenger],
+			routeWidth:passenger,
+		});
+		const startElapsedtime = this.movesbase.reduce(((acc,cur)=>
+			Math.min(acc,cur.operation[0].elapsedtime)
+		),2147483647)|0;
+		let endElapsedtime = this.movesbase.reduce(((acc,cur)=>{
+			const opelen = cur.operation.length;
+			if(opelen > 0){
+				return Math.max(acc,cur.operation[opelen-1].elapsedtime);
+			}
+			return acc;
+		}),startElapsedtime)|0;
+		if(startElapsedtime >= (endElapsedtime - endTimeMargin)){
+			endElapsedtime = startElapsedtime;
+		}else{
+			endElapsedtime = (endElapsedtime - endTimeMargin);
+		}
+		if(timeLength === 0 && (endElapsedtime - startElapsedtime) > 0){
+			actions.setTimeBegin(startElapsedtime);
+			actions.setTimeLength((endElapsedtime - startElapsedtime)|0);
+			actions.setTime((startElapsedtime - leading)|0);
+			actions.setNoLoop(noLoop);
+		}
+		if(timeLength > 0){
+			if(timeBegin !== startElapsedtime){
+				actions.setTimeBegin(startElapsedtime);
+				actions.setNoLoop(noLoop);
+			}
+			if(timeLength !== (endElapsedtime - startElapsedtime)){
+				actions.setTimeLength((endElapsedtime - startElapsedtime));
+				actions.setNoLoop(noLoop);
+			}
+		}
+	}
+
+	getExtractedDataFunc(props:any):any{
+		if(this.movesbase.length > 0){
+			const { settime, movedData:prevMovedData, secperhour, timeLength, iconGradation } = props;
+			if(prevMovedData.length > 0){
+			  if((Math.abs(prevMovedData[0].settime - settime)/3.6)*secperhour < 25){
+				return {movesbase:this.movesbase};
+			  };
+			}
+			const movedData = this.movesbase.reduce((movedData,movesbaseElement,movesbaseidx)=>{
+				const { departuretime, arrivaltime, operation, ...otherProps1 } = movesbaseElement;
+				if(timeLength > 0 && departuretime <= settime && settime < arrivaltime){
+					const nextidx = operation.findIndex((data:any)=>data.elapsedtime > settime);
+					const idx = (nextidx-1)|0;
+					if(typeof operation[idx].position === 'undefined' ||
+					typeof operation[nextidx].position === 'undefined'){
+						const {elapsedtime, ...otherProps2} = operation[idx];
+						movedData.push(Object.assign({},
+							otherProps1, otherProps2, { settime, movesbaseidx },
+						));
+					}else{
+						const COLOR1 = [0, 255, 0];
+						const { elapsedtime, position:sourcePosition,
+							color:sourceColor=COLOR1, direction=0, ...otherProps2 } = operation[idx];
+						const { elapsedtime:nextelapsedtime, position:targetPosition,
+							color:targetColor=COLOR1 } = operation[nextidx];
+						const rate = (settime - elapsedtime) / (nextelapsedtime - elapsedtime);
+						const position = [
+							sourcePosition[0] - (sourcePosition[0] - targetPosition[0]) * rate,
+							sourcePosition[1] - (sourcePosition[1] - targetPosition[1]) * rate,
+							sourcePosition[2] - (sourcePosition[2] - targetPosition[2]) * rate
+						];
+						const color = iconGradation ? [
+							(sourceColor[0] + rate * (targetColor[0] - sourceColor[0]))|0,
+							(sourceColor[1] + rate * (targetColor[1] - sourceColor[1]))|0,
+							(sourceColor[2] + rate * (targetColor[2] - sourceColor[2]))|0
+						] : sourceColor;
+						movedData.push(Object.assign({}, otherProps1, otherProps2,
+							{ settime,
+							position, sourcePosition, targetPosition,
+							color, direction, sourceColor, targetColor, movesbaseidx},
+						));
+					}
+				}
+				return movedData;
+			},[]);
+			return {movesbase:this.movesbase,movedData};
+		  }
+		  return {movesbase:this.movesbase};
 	}
 
 	updateMovesBase(){
@@ -636,6 +753,7 @@ class App extends Container<any,any> {
 		const { actions } = this.props;
 		actions.setInputFilename({ movesFileName: null });
 		actions.setMovesBase([]);
+		this.movesbase = [];
 		this.setState({ playbackMode: e.target.checked })
 	}
 	
@@ -678,7 +796,7 @@ class App extends Container<any,any> {
 
 	render () {
 		const props = this.props
-		const { actions, clickedObject, viewport, lines, arcs, scatters, geojson,
+		const { actions, clickedObject, viewport, lines, arcs, scatters, geojson, ExtractedData,
 			arcVisible, scatterVisible, scatterFill, scatterMode, 
 			routePaths, movesbase, movedData, extruded, gridSize,gridHeight, enabledHeatmap, selectedType,
 			widthRatio, heightRatio, radiusRatio, showTitle, infoBalloonList,  settime, titlePosOffset, titleSize,
@@ -831,6 +949,37 @@ class App extends Container<any,any> {
 		}
 			
 
+		if (this.state.moveDataVisible && ExtractedData && ExtractedData.movedData && ExtractedData.movedData.length > 0) {
+			const zoomDiff = Math.max(1.4,19-viewport.zoom);
+			const sizeScale = (zoomDiff**2)*2;
+			layers.push(
+				new MovesLayer({
+					routePaths, 
+					getRouteWidth: (x: any) => (x.routeWidth && x.routeWidth+1) || 1,
+					getRouteColor: (x: any) => x.routeColor || [255,165,0],
+					movesbase: ExtractedData.movesbase, 
+					movedData: ExtractedData.movedData,
+					layerOpacity: 0.8,
+					clickedObject, 
+					actions,
+					visible: this.state.moveDataVisible,
+					optionVisible: this.state.moveOptionVisible,
+					optionCentering: false,
+					optionElevationScale: sizeScale * 2,
+					optionOpacity: 0.8, 
+					optionCellSize: sizeScale + zoomDiff,
+					optionDisplayPosition: sizeScale + zoomDiff,
+					getCubeColor: (x: any) => x.optColor || [[255,255,255]],
+					sizeScale: sizeScale,
+					iconlayer: 'SimpleMesh',
+					mesh: futureCarmesh,
+					optionChange: false, // this.state.optionChange,
+					optionArcVisible: false,
+					optionLineVisible: false,
+					onHover
+				}) as any
+			)
+		}else
 		if (this.state.moveDataVisible && movedData.length > 0) {
 			const zoomDiff = Math.max(1.4,19-viewport.zoom);
 			const sizeScale = (zoomDiff**2)*2;
@@ -893,7 +1042,7 @@ class App extends Container<any,any> {
 				: <LoadingIcon loading={true} />
 		const controller  = 
 			(this.state.controlVisible?
-				<Controller {...(props as any)}
+				<Controller {...(props as any)} movesbase={this.movesbase}
 				deleteMovebase={this.deleteMovebase.bind(this)}
 				getMoveDataChecked={this.getMoveDataChecked.bind(this)}
 				getMoveOptionChecked={this.getMoveOptionChecked.bind(this)}
